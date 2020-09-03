@@ -1,7 +1,7 @@
 #ifndef __DSOUND_WRAP_INCLUDED__
 #define __DSOUND_WRAP_INCLUDED__
 
-#ifdef DSOUND_STATIC_PROXY
+#ifdef DS_STATIC_PROXY
 #define DirectSoundCreate            fnDirectSoundCreate
 #define DirectSoundEnumerateA        fnDirectSoundEnumerateA
 #define DirectSoundEnumerateW        fnDirectSoundEnumerateW
