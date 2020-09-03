@@ -24,7 +24,7 @@
 #include <stdarg.h>
 
 #include <windows.h>
-#include <dsound.h>
+#include "dsound_wrap.h"
 
 #include "dsound_private.h"
 

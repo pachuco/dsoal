@@ -25,7 +25,7 @@
 #include <string.h>
 
 #include <windows.h>
-#include <dsound.h>
+#include "dsound_wrap.h"
 #include <ks.h>
 #include <ksmedia.h>
 

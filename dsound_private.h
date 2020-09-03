@@ -28,7 +28,7 @@
 
 #include <stdio.h>
 #include <math.h>
-#include <dsound.h>
+#include "dsound_wrap.h"
 #include <mmdeviceapi.h>
 #include <devpropdef.h>
 

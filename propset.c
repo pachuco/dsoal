@@ -24,7 +24,7 @@
 #include <string.h>
 
 #include <windows.h>
-#include <dsound.h>
+#include "dsound_wrap.h"
 #include <mmsystem.h>
 #include <mmdeviceapi.h>
 #include <dsconf.h>
