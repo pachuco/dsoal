@@ -758,97 +758,7 @@ HRESULT enumerate_mmdevices(EDataFlow flow, PRVTENUMCALLBACK cb, void *user)
  */
 HRESULT WINAPI DSOAL_GetDeviceID(LPCGUID pGuidSrc, LPGUID pGuidDest)
 {
-    IMMDeviceEnumerator *devenum;
-    HRESULT hr, init_hr;
-    IMMDevice *device;
-    EDataFlow flow;
-    ERole role;
-
-    TRACE("(%s, %p)\n", get_device_id(pGuidSrc), pGuidDest);
-
-    if(!pGuidSrc || !pGuidDest)
-        return DSERR_INVALIDPARAM;
-
-    flow = eRender;
-    if(IsEqualGUID(&DSDEVID_DefaultPlayback, pGuidSrc))
-        role = eMultimedia;
-    else if(IsEqualGUID(&DSDEVID_DefaultVoicePlayback, pGuidSrc))
-        role = eCommunications;
-    else
-    {
-        flow = eCapture;
-        if(IsEqualGUID(&DSDEVID_DefaultCapture, pGuidSrc))
-            role = eMultimedia;
-        else if(IsEqualGUID(&DSDEVID_DefaultVoiceCapture, pGuidSrc))
-            role = eCommunications;
-        else
-        {
-            *pGuidDest = *pGuidSrc;
-            return DS_OK;
-        }
-    }
-
-    init_hr = get_mmdevenum(&devenum);
-    if(!devenum) return init_hr;
-
-    hr = IMMDeviceEnumerator_GetDefaultAudioEndpoint(devenum, flow, role, &device);
-    if(FAILED(hr))
-    {
-        WARN("GetDefaultAudioEndpoint failed: %08lx\n", hr);
-        release_mmdevenum(devenum, init_hr);
-        return DSERR_NODRIVER;
-    }
-
-    hr = get_mmdevice_guid(device, NULL, pGuidDest);
-    IMMDevice_Release(device);
-
-    release_mmdevenum(devenum, init_hr);
-
-    return hr;
-}
-
-
-struct morecontextW {
-    LPDSENUMCALLBACKW callW;
-    LPVOID data;
-};
-
-static BOOL CALLBACK w_callback(EDataFlow flow, LPGUID guid, LPCWSTR descW, LPCWSTR modW, LPVOID data)
-{
-    struct morecontextW *context = data;
-    (void)flow;
-
-    return context->callW(guid, descW, modW, context->data);
-}
-
-struct morecontextA {
-    LPDSENUMCALLBACKA callA;
-    LPVOID data;
-};
-
-static BOOL CALLBACK w_to_a_callback(EDataFlow flow, LPGUID guid, LPCWSTR descW, LPCWSTR modW, LPVOID data)
-{
-    struct morecontextA *context = data;
-    char *descA, *modA;
-    int dlen, mlen;
-    BOOL ret;
-    (void)flow;
-
-    dlen = WideCharToMultiByte(CP_ACP, 0, descW, -1, NULL, 0, NULL, NULL);
-    mlen = WideCharToMultiByte(CP_ACP, 0, modW, -1, NULL, 0, NULL, NULL);
-    if(dlen < 0 || mlen < 0) return FALSE;
-
-    descA = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dlen+mlen+2);
-    if(!descA) return FALSE;
-    modA = descA + dlen+1;
-
-    WideCharToMultiByte(CP_ACP, 0, descW, -1, descA, dlen, NULL, NULL);
-    WideCharToMultiByte(CP_ACP, 0, modW, -1, modA, mlen, NULL, NULL);
-
-    ret = context->callA(guid, descA, modA, context->data);
-
-    HeapFree(GetProcessHeap(), 0, descA);
-    return ret;
+    return GetDeviceID(pGuidSrc, pGuidDest);
 }
 
 /***************************************************************************
@@ -868,22 +778,7 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateA(
     LPDSENUMCALLBACKA lpDSEnumCallback,
     LPVOID lpContext)
 {
-    struct morecontextA ctx;
-    HRESULT hr;
-
-    TRACE("(%p, %p)\n", lpDSEnumCallback, lpContext);
-
-    if(lpDSEnumCallback == NULL)
-    {
-        WARN("invalid parameter: lpDSEnumCallback == NULL\n");
-        return DSERR_INVALIDPARAM;
-    }
-
-    ctx.callA = lpDSEnumCallback;
-    ctx.data = lpContext;
-
-    hr = enumerate_mmdevices(eRender, w_to_a_callback, &ctx);
-    return SUCCEEDED(hr) ? DS_OK : hr;
+    return DirectSoundEnumerateA(lpDSEnumCallback, lpContext);
 }
 
 
@@ -904,22 +799,7 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateW(
     LPDSENUMCALLBACKW lpDSEnumCallback,
     LPVOID lpContext )
 {
-    struct morecontextW ctx;
-    HRESULT hr;
-
-    TRACE("(%p, %p)\n", lpDSEnumCallback, lpContext);
-
-    if(lpDSEnumCallback == NULL)
-    {
-        WARN("invalid parameter: lpDSEnumCallback == NULL\n");
-        return DSERR_INVALIDPARAM;
-    }
-
-    ctx.callW = lpDSEnumCallback;
-    ctx.data = lpContext;
-
-    hr = enumerate_mmdevices(eRender, w_callback, &ctx);
-    return SUCCEEDED(hr) ? DS_OK : hr;
+    return DirectSoundEnumerateW(lpDSEnumCallback, lpContext);
 }
 
 /***************************************************************************
@@ -939,22 +819,7 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateA(
     LPDSENUMCALLBACKA lpDSEnumCallback,
     LPVOID lpContext)
 {
-    struct morecontextA ctx;
-    HRESULT hr;
-
-    TRACE("(%p, %p)\n", lpDSEnumCallback, lpContext);
-
-    if(lpDSEnumCallback == NULL)
-    {
-        WARN("invalid parameter: lpDSEnumCallback == NULL\n");
-        return DSERR_INVALIDPARAM;
-    }
-
-    ctx.callA = lpDSEnumCallback;
-    ctx.data = lpContext;
-
-    hr = enumerate_mmdevices(eCapture, w_to_a_callback, &ctx);
-    return SUCCEEDED(hr) ? DS_OK : hr;
+    return DirectSoundCaptureEnumerateA(lpDSEnumCallback, lpContext);
 }
 
 /***************************************************************************
@@ -974,22 +839,7 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateW(
     LPDSENUMCALLBACKW lpDSEnumCallback,
     LPVOID lpContext)
 {
-    struct morecontextW ctx;
-    HRESULT hr;
-
-    TRACE("(%p, %p)\n", lpDSEnumCallback, lpContext);
-
-    if(lpDSEnumCallback == NULL)
-    {
-        WARN("invalid parameter: lpDSEnumCallback == NULL\n");
-        return DSERR_INVALIDPARAM;
-    }
-
-    ctx.callW = lpDSEnumCallback;
-    ctx.data = lpContext;
-
-    hr = enumerate_mmdevices(eCapture, w_callback, &ctx);
-    return SUCCEEDED(hr) ? DS_OK : hr;
+    return DirectSoundCaptureEnumerateA(lpDSEnumCallback, lpContext);
 }
 
 /*******************************************************************************
