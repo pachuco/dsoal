@@ -5,7 +5,7 @@ set opts=-std=c99 -mconsole -Wall -Wextra -Os -s
 set opts=%opts% -shared -Wl,--enable-stdcall-fixup -static-libgcc -DCOBJMACROS -DDS_STATIC_PROXY
 
 set linkinc=-Iinclude/AL -lole32
-set files=buffer.c capture.c chorus.c debug.c dsound8.c dsound_main.c duplex.c eax.c eax4.c primary.c propset.c reverb.c
+set files=buffer.c bypass.c chorus.c debug.c dsound8.c dsound_main.c duplex.c eax.c eax4.c primary.c propset.c reverb.c
 set files=%files% dsound.def build/versionres.o
 
 set PATH=%PATH%;%gccbase%
