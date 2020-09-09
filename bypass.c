@@ -16,7 +16,7 @@ HRESULT DSOUND_CaptureCreate8(REFIID riid, void **cap)
     HRESULT ret = fnDirectSoundDllGetClassObject(&IID_IClassFactory, riid, &pFact);
     
     *cap = NULL;
-    if (ret = S_OK) {
+    if (ret == S_OK) {
         ret = IClassFactory_CreateInstance(pFact, NULL, &IID_IDirectSoundCapture8, cap);
         
         IClassFactory_Release(pFact);
@@ -31,7 +31,7 @@ HRESULT DSOUND_CaptureCreate(REFIID riid, void **cap)
     HRESULT ret = fnDirectSoundDllGetClassObject(&IID_IClassFactory, riid, &pFact);
     
     *cap = NULL;
-    if (ret = S_OK) {
+    if (ret == S_OK) {
         ret = IClassFactory_CreateInstance(pFact, NULL, &IID_IDirectSoundCapture, cap);
         
         IClassFactory_Release(pFact);
