@@ -201,7 +201,7 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     OLECHAR *guid_str = NULL;
     ALchar drv_name[64];
     DeviceShare *share;
-    IMMDevice *mmdev;
+    IDirectSound8* pDS;
     ALCint attrs[7];
     void *temp;
     HRESULT hr;
@@ -214,78 +214,13 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     share->speaker_config = DSSPEAKER_7POINT1_SURROUND;
 
     TRACE("Creating shared device %p\n", share);
-
-    hr = get_mmdevice(eRender, guid, &mmdev);
+    
+    hr = fnDirectSoundCreate8(guid, &pDS, NULL);
     if(SUCCEEDED(hr))
     {
-        IPropertyStore *store;
-
-        hr = IMMDevice_OpenPropertyStore(mmdev, STGM_READ, &store);
-        if(FAILED(hr))
-            WARN("IMMDevice_OpenPropertyStore failed: %08lx\n", hr);
-        else
-        {
-            ULONG phys_speakers = 0;
-            PROPVARIANT pv;
-
-            PropVariantInit(&pv);
-
-            hr = IPropertyStore_GetValue(store, &PKEY_AudioEndpoint_PhysicalSpeakers, &pv);
-            if(FAILED(hr))
-                WARN("IPropertyStore_GetValue failed: %08lx\n", hr);
-            else if(pv.vt != VT_UI4)
-                WARN("PKEY_AudioEndpoint_PhysicalSpeakers is not a ULONG: 0x%04x\n", pv.vt);
-            else
-            {
-                phys_speakers = pv.ulVal;
-
-#define BIT_MATCH(v, b) (((v)&(b)) == (b))
-                if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_7POINT1))
-                    share->speaker_config = DSSPEAKER_7POINT1;
-                else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_7POINT1_SURROUND))
-                    share->speaker_config = DSSPEAKER_7POINT1_SURROUND;
-                else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_5POINT1))
-                    share->speaker_config = DSSPEAKER_5POINT1_BACK;
-                else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_5POINT1_SURROUND))
-                    share->speaker_config = DSSPEAKER_5POINT1_SURROUND;
-                else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_QUAD))
-                    share->speaker_config = DSSPEAKER_QUAD;
-                else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_STEREO))
-                    share->speaker_config = DSSPEAKER_COMBINED(DSSPEAKER_STEREO, DSSPEAKER_GEOMETRY_WIDE);
-                else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_MONO))
-                    share->speaker_config = DSSPEAKER_MONO;
-                else
-                    FIXME("Unhandled physical speaker layout: 0x%08lx\n", phys_speakers);
-#undef BIT_MATCH
-            }
-
-            /* If the device has a stereo layout, check the formfactor to see
-             * if it's really headphones/headset.
-             */
-            if(DSSPEAKER_CONFIG(share->speaker_config) == DSSPEAKER_STEREO)
-            {
-                hr = IPropertyStore_GetValue(store, &PKEY_AudioEndpoint_FormFactor, &pv);
-                if(FAILED(hr))
-                    WARN("IPropertyStore_GetValue failed: %08lx\n", hr);
-                else if(pv.vt != VT_UI4)
-                    WARN("PKEY_AudioEndpoint_FormFactor is not a ULONG: 0x%04x\n", pv.vt);
-                else
-                {
-                    if(pv.ulVal == Headphones || pv.ulVal == Headset)
-                        share->speaker_config = DSSPEAKER_HEADPHONE;
-                }
-            }
-
-            TRACE("Got speaker config %d:%d from physical speakers 0x%08lx\n",
-                  DSSPEAKER_GEOMETRY(share->speaker_config),
-                  DSSPEAKER_CONFIG(share->speaker_config), phys_speakers);
-
-            PropVariantClear(&pv);
-            IPropertyStore_Release(store);
-        }
-
-        IMMDevice_Release(mmdev);
-        mmdev = NULL;
+        hr = IDirectSound8_GetSpeakerConfig(pDS, &(share->speaker_config));
+        if(FAILED(hr)) TRACE("Failed to get speaker config\n");
+        IDirectSound8_Release(pDS);
     }
 
     InitializeCriticalSection(&share->crst);
