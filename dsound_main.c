@@ -799,19 +799,6 @@ HRESULT WINAPI DllUnregisterServer(void)
 
 
 
-static const char *get_device_id(LPCGUID pGuid)
-{
-    if(IsEqualGUID(&DSDEVID_DefaultPlayback, pGuid))
-        return "DSDEVID_DefaultPlayback";
-    if(IsEqualGUID(&DSDEVID_DefaultVoicePlayback, pGuid))
-        return "DSDEVID_DefaultVoicePlayback";
-    if(IsEqualGUID(&DSDEVID_DefaultCapture, pGuid))
-        return "DSDEVID_DefaultCapture";
-    if(IsEqualGUID(&DSDEVID_DefaultVoiceCapture, pGuid))
-        return "DSDEVID_DefaultVoiceCapture";
-    return debugstr_guid(pGuid);
-}
-
 #ifdef _MSC_VER
 const CLSID CLSID_MMDeviceEnumerator = {
     0xBCDE0395,
