@@ -917,5 +917,3 @@ extern const WCHAR aldriver_name[];
 #define DECLSPEC_EXPORT
 #endif
 #endif
-
-HRESULT WINAPI DSOAL_GetDeviceID(LPCGUID pGuidSrc, LPGUID pGuidDest);
