@@ -26,9 +26,7 @@
 
 #include "windows.h"
 #include "dsound_wrap.h"
-#include "mmsystem.h"
 #include "ks.h"
-#include <devpropdef.h>
 
 #include "dsound_private.h"
 

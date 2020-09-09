@@ -39,9 +39,7 @@
 
 #include <windows.h>
 #include "dsound_wrap.h"
-#include <mmsystem.h>
-#include <mmdeviceapi.h>
-#include <devpropdef.h>
+#include "mmsys_crud.h"
 
 #include "dsound_private.h"
 #include "eax-presets.h"
@@ -453,289 +451,6 @@ static void LeaveALSectionGlob(void)
     LeaveCriticalSection(&openal_crst);
 }
 
-
-static const char *get_device_id(LPCGUID pGuid)
-{
-    if(IsEqualGUID(&DSDEVID_DefaultPlayback, pGuid))
-        return "DSDEVID_DefaultPlayback";
-    if(IsEqualGUID(&DSDEVID_DefaultVoicePlayback, pGuid))
-        return "DSDEVID_DefaultVoicePlayback";
-    if(IsEqualGUID(&DSDEVID_DefaultCapture, pGuid))
-        return "DSDEVID_DefaultCapture";
-    if(IsEqualGUID(&DSDEVID_DefaultVoiceCapture, pGuid))
-        return "DSDEVID_DefaultVoiceCapture";
-    return debugstr_guid(pGuid);
-}
-
-#ifdef _MSC_VER
-const CLSID CLSID_MMDeviceEnumerator = {
-    0xBCDE0395,
-    0xE52F, 0x467C,
-	{ 0x8E, 0x3D, 0xC4, 0x57, 0x92, 0x91, 0x69, 0x2E }
-};
-
-const IID IID_IMMDeviceEnumerator = {
-    0xA95664D2,
-    0x9614, 0x4F35,
-    { 0xA7, 0x46, 0xDE, 0x8D, 0xB6, 0x36, 0x17, 0xE6 }
-};
-#endif
-
-static HRESULT get_mmdevenum(IMMDeviceEnumerator **devenum)
-{
-    HRESULT hr, init_hr;
-
-    init_hr = CoInitialize(NULL);
-
-    hr = CoCreateInstance(&CLSID_MMDeviceEnumerator, NULL,
-            CLSCTX_INPROC_SERVER, &IID_IMMDeviceEnumerator, (void**)devenum);
-    if(FAILED(hr))
-    {
-        if(SUCCEEDED(init_hr))
-            CoUninitialize();
-        *devenum = NULL;
-        ERR("CoCreateInstance failed: %08lx\n", hr);
-        return hr;
-    }
-
-    return init_hr;
-}
-
-static void release_mmdevenum(IMMDeviceEnumerator *devenum, HRESULT init_hr)
-{
-    IMMDeviceEnumerator_Release(devenum);
-    if(SUCCEEDED(init_hr))
-        CoUninitialize();
-}
-
-static HRESULT get_mmdevice_guid(IMMDevice *device, IPropertyStore *ps, GUID *guid)
-{
-    PROPVARIANT pv;
-    HRESULT hr;
-
-    if(ps)
-        IPropertyStore_AddRef(ps);
-    else
-    {
-        hr = IMMDevice_OpenPropertyStore(device, STGM_READ, &ps);
-        if(FAILED(hr))
-        {
-            WARN("OpenPropertyStore failed: %08lx\n", hr);
-            return hr;
-        }
-    }
-
-    PropVariantInit(&pv);
-
-    hr = IPropertyStore_GetValue(ps, &PKEY_AudioEndpoint_GUID, &pv);
-    if(FAILED(hr))
-    {
-        IPropertyStore_Release(ps);
-        WARN("GetValue(GUID) failed: %08lx\n", hr);
-        return hr;
-    }
-
-    CLSIDFromString(pv.pwszVal, guid);
-
-    PropVariantClear(&pv);
-    IPropertyStore_Release(ps);
-
-    return S_OK;
-}
-
-
-static BOOL send_device(IMMDevice *device, EDataFlow flow, DeviceList *devlist, PRVTENUMCALLBACK cb, void *user)
-{
-    IPropertyStore *ps;
-    PROPVARIANT pv;
-    BOOL keep_going;
-    size_t dev_count;
-    HRESULT hr;
-    GUID guid;
-
-    PropVariantInit(&pv);
-
-    hr = IMMDevice_OpenPropertyStore(device, STGM_READ, &ps);
-    if(FAILED(hr))
-    {
-        WARN("OpenPropertyStore failed: %08lx\n", hr);
-        return TRUE;
-    }
-
-    hr = get_mmdevice_guid(device, ps, &guid);
-    if(FAILED(hr) || (devlist->Count > 0 && IsEqualGUID(&devlist->Guids[0], &guid)))
-    {
-        IPropertyStore_Release(ps);
-        return TRUE;
-    }
-
-    hr = IPropertyStore_GetValue(ps, (const PROPERTYKEY*)&DEVPKEY_Device_FriendlyName, &pv);
-    if(FAILED(hr))
-    {
-        IPropertyStore_Release(ps);
-        WARN("GetValue(FriendlyName) failed: %08lx\n", hr);
-        return TRUE;
-    }
-
-    dev_count = devlist->Count++;
-    devlist->Guids[dev_count] = guid;
-
-    keep_going = FALSE;
-    if(cb)
-    {
-        TRACE("Calling back with %s - %ls\n", debugstr_guid(&devlist->Guids[dev_count]),
-              pv.pwszVal);
-        keep_going = cb(flow, &devlist->Guids[dev_count], pv.pwszVal, aldriver_name, user);
-    }
-
-    PropVariantClear(&pv);
-    IPropertyStore_Release(ps);
-
-    return keep_going;
-}
-
-HRESULT get_mmdevice(EDataFlow flow, const GUID *tgt, IMMDevice **device)
-{
-    IMMDeviceEnumerator *devenum;
-    IMMDeviceCollection *coll;
-    UINT count, i;
-    HRESULT hr, init_hr;
-
-    init_hr = get_mmdevenum(&devenum);
-    if(!devenum) return init_hr;
-
-    hr = IMMDeviceEnumerator_EnumAudioEndpoints(devenum, flow, DEVICE_STATE_ACTIVE, &coll);
-    if(FAILED(hr))
-    {
-        WARN("EnumAudioEndpoints failed: %08lx\n", hr);
-        release_mmdevenum(devenum, init_hr);
-        return hr;
-    }
-
-    hr = IMMDeviceCollection_GetCount(coll, &count);
-    if(FAILED(hr))
-    {
-        IMMDeviceCollection_Release(coll);
-        release_mmdevenum(devenum, init_hr);
-        WARN("GetCount failed: %08lx\n", hr);
-        return hr;
-    }
-
-    for(i = 0; i < count;++i)
-    {
-        GUID guid;
-
-        hr = IMMDeviceCollection_Item(coll, i, device);
-        if(FAILED(hr)) continue;
-
-        hr = get_mmdevice_guid(*device, NULL, &guid);
-        if(FAILED(hr))
-        {
-            IMMDevice_Release(*device);
-            continue;
-        }
-
-        if(IsEqualGUID(&guid, tgt))
-        {
-            IMMDeviceCollection_Release(coll);
-            release_mmdevenum(devenum, init_hr);
-            return DS_OK;
-        }
-
-        IMMDevice_Release(*device);
-    }
-
-    WARN("No device with GUID %s found!\n", debugstr_guid(tgt));
-
-    IMMDeviceCollection_Release(coll);
-    release_mmdevenum(devenum, init_hr);
-
-    return DSERR_INVALIDPARAM;
-}
-
-/* S_FALSE means the callback returned FALSE at some point
- * S_OK means the callback always returned TRUE */
-HRESULT enumerate_mmdevices(EDataFlow flow, PRVTENUMCALLBACK cb, void *user)
-{
-    static const WCHAR primary_desc[] = L"Primary Sound Driver";
-
-    IMMDeviceEnumerator *devenum;
-    IMMDeviceCollection *coll;
-    IMMDevice *device;
-    DeviceList *devlist;
-    UINT count, i;
-    BOOL keep_going;
-    HRESULT hr, init_hr;
-
-    init_hr = get_mmdevenum(&devenum);
-    if(!devenum) return init_hr;
-
-    hr = IMMDeviceEnumerator_EnumAudioEndpoints(devenum, flow, DEVICE_STATE_ACTIVE, &coll);
-    if(FAILED(hr))
-    {
-        release_mmdevenum(devenum, init_hr);
-        WARN("EnumAudioEndpoints failed: %08lx\n", hr);
-        return DS_OK;
-    }
-
-    hr = IMMDeviceCollection_GetCount(coll, &count);
-    if(FAILED(hr))
-    {
-        IMMDeviceCollection_Release(coll);
-        release_mmdevenum(devenum, init_hr);
-        WARN("GetCount failed: %08lx\n", hr);
-        return DS_OK;
-    }
-
-    if(count == 0)
-    {
-        IMMDeviceCollection_Release(coll);
-        release_mmdevenum(devenum, init_hr);
-        return DS_OK;
-    }
-
-    devlist = (flow==eCapture) ? &CaptureDevices : &PlaybackDevices;
-
-    HeapFree(GetProcessHeap(), 0, devlist->Guids);
-    devlist->Count = 0;
-    devlist->Guids = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
-                               sizeof(devlist->Guids[0])*count);
-
-    TRACE("Calling back with NULL (%ls)\n", primary_desc);
-    keep_going = cb(flow, NULL, primary_desc, L"", user);
-
-    /* always send the default device first */
-    hr = IMMDeviceEnumerator_GetDefaultAudioEndpoint(devenum, flow, eMultimedia, &device);
-    if(SUCCEEDED(hr))
-    {
-        if(!keep_going) cb = NULL;
-        keep_going = send_device(device, flow, devlist, cb, user);
-        IMMDevice_Release(device);
-    }
-
-    for(i = 0;i < count;++i)
-    {
-        if(!keep_going)
-            cb = NULL;
-
-        hr = IMMDeviceCollection_Item(coll, i, &device);
-        if(FAILED(hr))
-        {
-            WARN("Item failed: %08lx\n", hr);
-            continue;
-        }
-
-        keep_going = send_device(device, flow, devlist, cb, user);
-
-        IMMDevice_Release(device);
-    }
-    IMMDeviceCollection_Release(coll);
-
-    release_mmdevenum(devenum, init_hr);
-
-    return keep_going ? S_OK : S_FALSE;
-}
-
 /*******************************************************************************
  *      DirectSoundCreate (DSOUND.1)
  *
@@ -1067,3 +782,301 @@ HRESULT WINAPI DllUnregisterServer(void)
     return __wine_unregister_resources(instance);
 }
 #endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static const char *get_device_id(LPCGUID pGuid)
+{
+    if(IsEqualGUID(&DSDEVID_DefaultPlayback, pGuid))
+        return "DSDEVID_DefaultPlayback";
+    if(IsEqualGUID(&DSDEVID_DefaultVoicePlayback, pGuid))
+        return "DSDEVID_DefaultVoicePlayback";
+    if(IsEqualGUID(&DSDEVID_DefaultCapture, pGuid))
+        return "DSDEVID_DefaultCapture";
+    if(IsEqualGUID(&DSDEVID_DefaultVoiceCapture, pGuid))
+        return "DSDEVID_DefaultVoiceCapture";
+    return debugstr_guid(pGuid);
+}
+
+#ifdef _MSC_VER
+const CLSID CLSID_MMDeviceEnumerator = {
+    0xBCDE0395,
+    0xE52F, 0x467C,
+	{ 0x8E, 0x3D, 0xC4, 0x57, 0x92, 0x91, 0x69, 0x2E }
+};
+
+const IID IID_IMMDeviceEnumerator = {
+    0xA95664D2,
+    0x9614, 0x4F35,
+    { 0xA7, 0x46, 0xDE, 0x8D, 0xB6, 0x36, 0x17, 0xE6 }
+};
+#endif
+
+static HRESULT get_mmdevenum(IMMDeviceEnumerator **devenum)
+{
+    HRESULT hr, init_hr;
+
+    init_hr = CoInitialize(NULL);
+
+    hr = CoCreateInstance(&CLSID_MMDeviceEnumerator, NULL,
+            CLSCTX_INPROC_SERVER, &IID_IMMDeviceEnumerator, (void**)devenum);
+    if(FAILED(hr))
+    {
+        if(SUCCEEDED(init_hr))
+            CoUninitialize();
+        *devenum = NULL;
+        ERR("CoCreateInstance failed: %08lx\n", hr);
+        return hr;
+    }
+
+    return init_hr;
+}
+
+static void release_mmdevenum(IMMDeviceEnumerator *devenum, HRESULT init_hr)
+{
+    IMMDeviceEnumerator_Release(devenum);
+    if(SUCCEEDED(init_hr))
+        CoUninitialize();
+}
+
+static HRESULT get_mmdevice_guid(IMMDevice *device, IPropertyStore *ps, GUID *guid)
+{
+    PROPVARIANT pv;
+    HRESULT hr;
+
+    if(ps)
+        IPropertyStore_AddRef(ps);
+    else
+    {
+        hr = IMMDevice_OpenPropertyStore(device, STGM_READ, &ps);
+        if(FAILED(hr))
+        {
+            WARN("OpenPropertyStore failed: %08lx\n", hr);
+            return hr;
+        }
+    }
+
+    PropVariantInit(&pv);
+
+    hr = IPropertyStore_GetValue(ps, &PKEY_AudioEndpoint_GUID, &pv);
+    if(FAILED(hr))
+    {
+        IPropertyStore_Release(ps);
+        WARN("GetValue(GUID) failed: %08lx\n", hr);
+        return hr;
+    }
+
+    CLSIDFromString(pv.pwszVal, guid);
+
+    PropVariantClear(&pv);
+    IPropertyStore_Release(ps);
+
+    return S_OK;
+}
+
+
+static BOOL send_device(IMMDevice *device, EDataFlow flow, DeviceList *devlist, PRVTENUMCALLBACK cb, void *user)
+{
+    IPropertyStore *ps;
+    PROPVARIANT pv;
+    BOOL keep_going;
+    size_t dev_count;
+    HRESULT hr;
+    GUID guid;
+
+    PropVariantInit(&pv);
+
+    hr = IMMDevice_OpenPropertyStore(device, STGM_READ, &ps);
+    if(FAILED(hr))
+    {
+        WARN("OpenPropertyStore failed: %08lx\n", hr);
+        return TRUE;
+    }
+
+    hr = get_mmdevice_guid(device, ps, &guid);
+    if(FAILED(hr) || (devlist->Count > 0 && IsEqualGUID(&devlist->Guids[0], &guid)))
+    {
+        IPropertyStore_Release(ps);
+        return TRUE;
+    }
+
+    hr = IPropertyStore_GetValue(ps, (const PROPERTYKEY*)&DEVPKEY_Device_FriendlyName, &pv);
+    if(FAILED(hr))
+    {
+        IPropertyStore_Release(ps);
+        WARN("GetValue(FriendlyName) failed: %08lx\n", hr);
+        return TRUE;
+    }
+
+    dev_count = devlist->Count++;
+    devlist->Guids[dev_count] = guid;
+
+    keep_going = FALSE;
+    if(cb)
+    {
+        TRACE("Calling back with %s - %ls\n", debugstr_guid(&devlist->Guids[dev_count]),
+              pv.pwszVal);
+        keep_going = cb(flow, &devlist->Guids[dev_count], pv.pwszVal, aldriver_name, user);
+    }
+
+    PropVariantClear(&pv);
+    IPropertyStore_Release(ps);
+
+    return keep_going;
+}
+
+HRESULT get_mmdevice(EDataFlow flow, const GUID *tgt, IMMDevice **device)
+{
+    IMMDeviceEnumerator *devenum;
+    IMMDeviceCollection *coll;
+    UINT count, i;
+    HRESULT hr, init_hr;
+
+    init_hr = get_mmdevenum(&devenum);
+    if(!devenum) return init_hr;
+
+    hr = IMMDeviceEnumerator_EnumAudioEndpoints(devenum, flow, DEVICE_STATE_ACTIVE, &coll);
+    if(FAILED(hr))
+    {
+        WARN("EnumAudioEndpoints failed: %08lx\n", hr);
+        release_mmdevenum(devenum, init_hr);
+        return hr;
+    }
+
+    hr = IMMDeviceCollection_GetCount(coll, &count);
+    if(FAILED(hr))
+    {
+        IMMDeviceCollection_Release(coll);
+        release_mmdevenum(devenum, init_hr);
+        WARN("GetCount failed: %08lx\n", hr);
+        return hr;
+    }
+
+    for(i = 0; i < count;++i)
+    {
+        GUID guid;
+
+        hr = IMMDeviceCollection_Item(coll, i, device);
+        if(FAILED(hr)) continue;
+
+        hr = get_mmdevice_guid(*device, NULL, &guid);
+        if(FAILED(hr))
+        {
+            IMMDevice_Release(*device);
+            continue;
+        }
+
+        if(IsEqualGUID(&guid, tgt))
+        {
+            IMMDeviceCollection_Release(coll);
+            release_mmdevenum(devenum, init_hr);
+            return DS_OK;
+        }
+
+        IMMDevice_Release(*device);
+    }
+
+    WARN("No device with GUID %s found!\n", debugstr_guid(tgt));
+
+    IMMDeviceCollection_Release(coll);
+    release_mmdevenum(devenum, init_hr);
+
+    return DSERR_INVALIDPARAM;
+}
+
+/* S_FALSE means the callback returned FALSE at some point
+ * S_OK means the callback always returned TRUE */
+HRESULT enumerate_mmdevices(EDataFlow flow, PRVTENUMCALLBACK cb, void *user)
+{
+    static const WCHAR primary_desc[] = L"Primary Sound Driver";
+
+    IMMDeviceEnumerator *devenum;
+    IMMDeviceCollection *coll;
+    IMMDevice *device;
+    DeviceList *devlist;
+    UINT count, i;
+    BOOL keep_going;
+    HRESULT hr, init_hr;
+
+    init_hr = get_mmdevenum(&devenum);
+    if(!devenum) return init_hr;
+
+    hr = IMMDeviceEnumerator_EnumAudioEndpoints(devenum, flow, DEVICE_STATE_ACTIVE, &coll);
+    if(FAILED(hr))
+    {
+        release_mmdevenum(devenum, init_hr);
+        WARN("EnumAudioEndpoints failed: %08lx\n", hr);
+        return DS_OK;
+    }
+
+    hr = IMMDeviceCollection_GetCount(coll, &count);
+    if(FAILED(hr))
+    {
+        IMMDeviceCollection_Release(coll);
+        release_mmdevenum(devenum, init_hr);
+        WARN("GetCount failed: %08lx\n", hr);
+        return DS_OK;
+    }
+
+    if(count == 0)
+    {
+        IMMDeviceCollection_Release(coll);
+        release_mmdevenum(devenum, init_hr);
+        return DS_OK;
+    }
+
+    devlist = (flow==eCapture) ? &CaptureDevices : &PlaybackDevices;
+
+    HeapFree(GetProcessHeap(), 0, devlist->Guids);
+    devlist->Count = 0;
+    devlist->Guids = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
+                               sizeof(devlist->Guids[0])*count);
+
+    TRACE("Calling back with NULL (%ls)\n", primary_desc);
+    keep_going = cb(flow, NULL, primary_desc, L"", user);
+
+    /* always send the default device first */
+    hr = IMMDeviceEnumerator_GetDefaultAudioEndpoint(devenum, flow, eMultimedia, &device);
+    if(SUCCEEDED(hr))
+    {
+        if(!keep_going) cb = NULL;
+        keep_going = send_device(device, flow, devlist, cb, user);
+        IMMDevice_Release(device);
+    }
+
+    for(i = 0;i < count;++i)
+    {
+        if(!keep_going)
+            cb = NULL;
+
+        hr = IMMDeviceCollection_Item(coll, i, &device);
+        if(FAILED(hr))
+        {
+            WARN("Item failed: %08lx\n", hr);
+            continue;
+        }
+
+        keep_going = send_device(device, flow, devlist, cb, user);
+
+        IMMDevice_Release(device);
+    }
+    IMMDeviceCollection_Release(coll);
+
+    release_mmdevenum(devenum, init_hr);
+
+    return keep_going ? S_OK : S_FALSE;
+}

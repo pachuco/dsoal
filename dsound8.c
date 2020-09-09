@@ -30,6 +30,7 @@
 #include <ksmedia.h>
 
 #include "dsound_private.h"
+#include "mmsys_crud.h"
 
 #ifndef DSSPEAKER_7POINT1
 #define DSSPEAKER_7POINT1       7

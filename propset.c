@@ -25,10 +25,9 @@
 
 #include <windows.h>
 #include "dsound_wrap.h"
-#include <mmsystem.h>
-#include <mmdeviceapi.h>
 #include <dsconf.h>
-#include <devpropdef.h>
+
+#include "mmsys_crud.h"
 
 #include "dsound_private.h"
 

@@ -29,8 +29,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "dsound_wrap.h"
-#include <mmdeviceapi.h>
-#include <devpropdef.h>
+
 
 #include "wingdi.h"
 #include "mmreg.h"
@@ -779,8 +778,6 @@ DEFINE_GUID(DSPROPSETID_DirectSoundDevice, 0x84624f82, 0x25ec, 0x11d1, 0xa4, 0xd
 DEFINE_GUID(KSDATAFORMAT_SUBTYPE_PCM, 0x00000001, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71);
 DEFINE_GUID(KSDATAFORMAT_SUBTYPE_IEEE_FLOAT, 0x00000003, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71);
 
-DEFINE_DEVPROPKEY(DEVPKEY_Device_FriendlyName, 0xa45c254e,0xdf1c,0x4efd,0x80,0x20,0x67,0xd1,0x46,0xa8,0x50,0xe0, 14);
-
 DEFINE_GUID(DSPROPSETID_VoiceManager, 0x62a69bae, 0xdf9d, 0x11d1, 0x99, 0xa6, 0x00, 0xc0, 0x4f, 0xc9, 0x9d, 0x46);
 DEFINE_GUID(DSPROPSETID_ZOOMFX_BufferProperties, 0xcd5368e0, 0x3450, 0x11d3, 0x8b, 0x6e, 0x00, 0x10, 0x5a, 0x9b, 0x7b, 0xbc);
 DEFINE_GUID(DSPROPSETID_I3DL2_ListenerProperties, 0xda0f0520, 0x300a, 0x11d3, 0x8a, 0x2b, 0x00, 0x60, 0x97, 0x0d, 0xb0, 0x11);
@@ -903,10 +900,6 @@ HRESULT DSOUND_FullDuplexCreate(REFIID riid, void **ppDSFD);
 HRESULT IKsPrivatePropertySetImpl_Create(REFIID riid, void **piks);
 HRESULT DSOUND_CaptureCreate(REFIID riid, void **ppDSC);
 HRESULT DSOUND_CaptureCreate8(REFIID riid, void **ppDSC);
-
-typedef BOOL (CALLBACK *PRVTENUMCALLBACK)(EDataFlow flow, LPGUID guid, LPCWSTR descW, LPCWSTR modW, LPVOID data);
-HRESULT enumerate_mmdevices(EDataFlow flow, PRVTENUMCALLBACK cb, void *user);
-HRESULT get_mmdevice(EDataFlow flow, const GUID *tgt, IMMDevice **device);
 
 extern const WCHAR aldriver_name[];
 

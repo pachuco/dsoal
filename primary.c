@@ -26,7 +26,6 @@
 
 #include <windows.h>
 #include "dsound_wrap.h"
-#include <mmsystem.h>
 
 #include "dsound_private.h"
 #include "eax-presets.h"
