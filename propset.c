@@ -194,6 +194,29 @@ static HRESULT DSPROPERTY_WaveDeviceMappingA(
     return hr;
 }
 
+
+
+typedef struct {
+    BOOL isFound;
+    LPGUID  wantedGUID;
+    PDSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA ppd;
+} DSEnumW;
+
+static BOOL CALLBACK cbFriendlyDevName(LPGUID lpGuid, LPCWSTR lpcstrDescription, LPCWSTR lpcstrModule, LPVOID lpContext)
+{
+    DSEnumW* pDevEnum = lpContext;
+    (void)lpcstrModule;
+    
+    pDevEnum->isFound = FALSE;
+    if (IsEqualGUID(pDevEnum->wantedGUID, lpGuid)) {
+        pDevEnum->isFound = TRUE;
+        pDevEnum->ppd->Description = strdupW(lpcstrDescription);
+        return FALSE;
+    }
+    
+    return TRUE;
+}
+
 static HRESULT DSPROPERTY_DescriptionW(
     LPVOID pPropData,
     ULONG cbPropData,
@@ -201,9 +224,7 @@ static HRESULT DSPROPERTY_DescriptionW(
 {
     PDSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA ppd = pPropData;
     GUID dev_guid;
-    IMMDevice *mmdevice;
-    IPropertyStore *ps;
-    PROPVARIANT pv;
+    DSEnumW devEnum;
     HRESULT hr;
 
     TRACE("pPropData=%p,cbPropData=%ld,pcbReturned=%p)\n",
@@ -225,39 +246,19 @@ static HRESULT DSPROPERTY_DescriptionW(
     }
 
     fnGetDeviceID(&ppd->DeviceId, &dev_guid);
-
-    hr = get_mmdevice(eRender, &dev_guid, &mmdevice);
-    if(FAILED(hr)){
-        hr = get_mmdevice(eCapture, &dev_guid, &mmdevice);
-        if(FAILED(hr))
-            return hr;
+    
+    devEnum.wantedGUID = &dev_guid;
+    hr = fnDirectSoundEnumerateW(&cbFriendlyDevName, &devEnum);
+    if (FAILED(hr) || !devEnum.isFound) {
+        hr = fnDirectSoundCaptureEnumerateW(&cbFriendlyDevName, &devEnum);
+        if (FAILED(hr) || !devEnum.isFound) {
+            return DSERR_INVALIDPARAM;
+        }
     }
-
-    hr = IMMDevice_OpenPropertyStore(mmdevice, STGM_READ, &ps);
-    if(FAILED(hr))
-    {
-        IMMDevice_Release(mmdevice);
-        WARN("OpenPropertyStore failed: %08lx\n", hr);
-        return hr;
-    }
-
-    hr = IPropertyStore_GetValue(ps, (const PROPERTYKEY*)&DEVPKEY_Device_FriendlyName, &pv);
-    if(FAILED(hr))
-    {
-        IPropertyStore_Release(ps);
-        IMMDevice_Release(mmdevice);
-        WARN("GetValue(FriendlyName) failed: %08lx\n", hr);
-        return hr;
-    }
-
-    ppd->Description = strdupW(pv.pwszVal);
+    
     ppd->Module = strdupW(aldriver_name);
     ppd->Interface = strdupW(L"Interface");
     ppd->Type = DIRECTSOUNDDEVICE_TYPE_WDM;
-
-    PropVariantClear(&pv);
-    IPropertyStore_Release(ps);
-    IMMDevice_Release(mmdevice);
 
     if (pcbReturned)
     {
