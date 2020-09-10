@@ -99,22 +99,23 @@ static ULONG WINAPI IKsPrivatePropertySetImpl_Release(LPKSPROPERTYSET iface)
     return ref;
 }
 
-struct search_data {
-    const WCHAR *tgt_name;
-    GUID *found_guid;
-};
+typedef struct {
+    BOOL isFound;
+    LPGUID foundGUID;
+    const WCHAR* wantedName;
+} UserDatSearchByName;
 
-static BOOL CALLBACK search_callback(EDataFlow flow, GUID *guid, const WCHAR *desc,
-        const WCHAR *module, void *user)
+static BOOL CALLBACK cbSearchByName(LPGUID lpGuid, LPCWSTR lpcstrDescription, LPCWSTR lpcstrModule, LPVOID lpContext)
 {
-    struct search_data *search = user;
-    (void)flow;
-    (void)module;
-
-    if(lstrcmpW(desc, search->tgt_name) != 0)
+    UserDatSearchByName* user = lpContext;
+    (void)lpcstrModule;
+    
+    user->isFound = FALSE;
+    if(lstrcmpW(lpcstrDescription, user->wantedName) != 0)
         return TRUE;
-
-    *search->found_guid = *guid;
+    
+    user->isFound = TRUE;
+    *user->foundGUID = *lpGuid;
     return FALSE;
 }
 
@@ -125,7 +126,7 @@ static HRESULT DSPROPERTY_WaveDeviceMappingW(
 {
     HRESULT hr;
     PDSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W_DATA ppd = pPropData;
-    struct search_data search;
+    UserDatSearchByName user = {0};
 
     TRACE("(pPropData=%p,cbPropData=%ld,pcbReturned=%p)\n",
           pPropData,cbPropData,pcbReturned);
@@ -136,17 +137,17 @@ static HRESULT DSPROPERTY_WaveDeviceMappingW(
         return DSERR_INVALIDPARAM;
     }
 
-    search.tgt_name = ppd->DeviceName;
-    search.found_guid = &ppd->DeviceId;
+    user.wantedName = ppd->DeviceName;
+    user.foundGUID  = &ppd->DeviceId;
 
     if (ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_RENDER)
-        hr = enumerate_mmdevices(eRender, search_callback, &search);
+        hr = fnDirectSoundEnumerateW(&cbSearchByName, &user);
     else if (ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE)
-        hr = enumerate_mmdevices(eCapture, search_callback, &search);
+        hr = fnDirectSoundCaptureEnumerateW(&cbSearchByName, &user);
     else
         return DSERR_INVALIDPARAM;
 
-    if(hr != S_FALSE)
+    if(FAILED(hr) || !user.isFound)
         /* device was not found */
         return DSERR_INVALIDPARAM;
 
@@ -191,23 +192,21 @@ static HRESULT DSPROPERTY_WaveDeviceMappingA(
     return hr;
 }
 
-
-
 typedef struct {
     BOOL isFound;
     LPGUID wantedGUID;
     PDSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA ppd;
-} DSEnumW;
+} UserDatSearchByGUID;
 
-static BOOL CALLBACK cbFriendlyDevName(LPGUID lpGuid, LPCWSTR lpcstrDescription, LPCWSTR lpcstrModule, LPVOID lpContext)
+static BOOL CALLBACK cbSearchByGUID(LPGUID lpGuid, LPCWSTR lpcstrDescription, LPCWSTR lpcstrModule, LPVOID lpContext)
 {
-    DSEnumW* pDevEnum = lpContext;
+    UserDatSearchByGUID* user = lpContext;
     (void)lpcstrModule;
     
-    pDevEnum->isFound = FALSE;
-    if (IsEqualGUID(pDevEnum->wantedGUID, lpGuid)) {
-        pDevEnum->isFound = TRUE;
-        pDevEnum->ppd->Description = strdupW(lpcstrDescription);
+    user->isFound = FALSE;
+    if (IsEqualGUID(user->wantedGUID, lpGuid)) {
+        user->isFound = TRUE;
+        user->ppd->Description = strdupW(lpcstrDescription);
         return FALSE;
     }
     
@@ -221,7 +220,7 @@ static HRESULT DSPROPERTY_DescriptionW(
 {
     PDSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA ppd = pPropData;
     GUID dev_guid;
-    DSEnumW devEnum;
+    UserDatSearchByGUID user;
     HRESULT hr;
 
     TRACE("pPropData=%p,cbPropData=%ld,pcbReturned=%p)\n",
@@ -244,11 +243,11 @@ static HRESULT DSPROPERTY_DescriptionW(
 
     fnGetDeviceID(&ppd->DeviceId, &dev_guid);
     
-    devEnum.wantedGUID = &dev_guid;
-    hr = fnDirectSoundEnumerateW(&cbFriendlyDevName, &devEnum);
-    if (FAILED(hr) || !devEnum.isFound) {
-        hr = fnDirectSoundCaptureEnumerateW(&cbFriendlyDevName, &devEnum);
-        if (FAILED(hr) || !devEnum.isFound) {
+    user.wantedGUID = &dev_guid;
+    hr = fnDirectSoundEnumerateW(&cbSearchByGUID, &user);
+    if (FAILED(hr) || !user.isFound) {
+        hr = fnDirectSoundCaptureEnumerateW(&cbSearchByGUID, &user);
+        if (FAILED(hr) || !user.isFound) {
             return DSERR_INVALIDPARAM;
         }
     }
