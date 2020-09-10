@@ -196,8 +196,9 @@ static inline int fallback_ctz64(DWORD64 value)
 #endif
 
 
+extern int libs_loaded;
+
 /* All openal functions */
-extern int openal_loaded;
 extern LPALCCREATECONTEXT palcCreateContext;
 extern LPALCMAKECONTEXTCURRENT palcMakeContextCurrent;
 extern LPALCPROCESSCONTEXT palcProcessContext;
@@ -429,6 +430,21 @@ extern LPALFLUSHMAPPEDBUFFERSOFT palFlushMappedBufferSOFT;
 #define alUnmapBufferSOFT palUnmapBufferSOFT
 #define alFlushMappedBufferSOFT palFlushMappedBufferSOFT
 
+/* All dsound functions */
+
+extern LPDIRECTSOUNDCREATE             pDirectSoundCreate;
+extern LPDIRECTSOUNDENUMERATEA         pDirectSoundEnumerateA;
+extern LPDIRECTSOUNDENUMERATEW         pDirectSoundEnumerateW;
+extern LPDIRECTSOUNDCAPTURECREATE      pDirectSoundCaptureCreate;
+extern LPDIRECTSOUNDCAPTUREENUMERATEA  pDirectSoundCaptureEnumerateA;
+extern LPDIRECTSOUNDCAPTUREENUMERATEW  pDirectSoundCaptureEnumerateW;
+extern LPGETDEVICEID                   pGetDeviceID;
+extern LPDIRECTSOUNDFULLDUPLEXCREATE   pDirectSoundFullDuplexCreate;
+extern LPDIRECTSOUNDCREATE8            pDirectSoundCreate8;
+extern LPDIRECTSOUNDCAPTURECREATE8     pDirectSoundCaptureCreate8;
+
+extern LPDLLCANUNLOADNOW               pDirectSoundDllCanUnloadNow;
+extern LPDLLGETCLASSOBJECT             pDirectSoundDllGetClassObject;
 
 #ifndef E_PROP_ID_UNSUPPORTED
 #define E_PROP_ID_UNSUPPORTED           ((HRESULT)0x80070490)

@@ -139,9 +139,9 @@ static HRESULT DSPROPERTY_WaveDeviceMappingW(
     user.foundGuid  = &ppd->DeviceId;
 
     if (ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_RENDER)
-        hr = fnDirectSoundEnumerateW(&cbSearchByName, &user);
+        hr = pDirectSoundEnumerateW(&cbSearchByName, &user);
     else if (ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE)
-        hr = fnDirectSoundCaptureEnumerateW(&cbSearchByName, &user);
+        hr = pDirectSoundCaptureEnumerateW(&cbSearchByName, &user);
     else
         return DSERR_INVALIDPARAM;
 
@@ -239,12 +239,12 @@ static HRESULT DSPROPERTY_DescriptionW(
         }
     }
 
-    fnGetDeviceID(&ppd->DeviceId, &dev_guid);
+    pGetDeviceID(&ppd->DeviceId, &dev_guid);
     
     user.wantedGuid = &dev_guid;
-    hr = fnDirectSoundEnumerateW(&cbSearchByGUID, &user);
+    hr = pDirectSoundEnumerateW(&cbSearchByGUID, &user);
     if (FAILED(hr) || !user.isFound) {
-        hr = fnDirectSoundCaptureEnumerateW(&cbSearchByGUID, &user);
+        hr = pDirectSoundCaptureEnumerateW(&cbSearchByGUID, &user);
         if (FAILED(hr) || !user.isFound) {
             return DSERR_INVALIDPARAM;
         }
@@ -325,10 +325,10 @@ static HRESULT DSPROPERTY_EnumerateW(
     
     user.ppd = ppd;
     user.DataFlow = DIRECTSOUNDDEVICE_DATAFLOW_RENDER;
-    hr = DirectSoundEnumerateW(&cbEnumerate, &user);
+    hr = pDirectSoundEnumerateW(&cbEnumerate, &user);
     if(hr == S_OK) {        
         user.DataFlow = DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE;
-        hr = DirectSoundCaptureEnumerateW(&cbEnumerate, &user);
+        hr = pDirectSoundCaptureEnumerateW(&cbEnumerate, &user);
     }
     
     return SUCCEEDED(hr) ? DS_OK : hr;

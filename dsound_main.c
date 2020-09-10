@@ -56,6 +56,7 @@ int LogLevel = 1;
 FILE *LogFile;
 
 const WCHAR aldriver_name[] = L"dsoal-aldrv.dll";
+const WCHAR dsound_name[] = L"system32\\dsound.dll";
 
 
 const EAXREVERBPROPERTIES EnvironmentDefaults[EAX_ENVIRONMENT_UNDEFINED] = {
@@ -89,7 +90,8 @@ const EAXREVERBPROPERTIES EnvironmentDefaults[EAX_ENVIRONMENT_UNDEFINED] = {
 
 CRITICAL_SECTION openal_crst;
 
-int openal_loaded = 0;
+int libs_loaded = 0;
+
 static HANDLE openal_handle = NULL;
 LPALCCREATECONTEXT palcCreateContext = NULL;
 LPALCMAKECONTEXTCURRENT palcMakeContextCurrent = NULL;
@@ -205,6 +207,25 @@ LPALMAPBUFFERSOFT palMapBufferSOFT = NULL;
 LPALUNMAPBUFFERSOFT palUnmapBufferSOFT = NULL;
 LPALFLUSHMAPPEDBUFFERSOFT palFlushMappedBufferSOFT = NULL;
 
+static HANDLE dsound_handle = NULL;
+LPDIRECTSOUNDCREATE             pDirectSoundCreate            = NULL;
+LPDIRECTSOUNDENUMERATEA         pDirectSoundEnumerateA        = NULL;
+LPDIRECTSOUNDENUMERATEW         pDirectSoundEnumerateW        = NULL;
+LPDIRECTSOUNDCAPTURECREATE      pDirectSoundCaptureCreate     = NULL;
+LPDIRECTSOUNDCAPTUREENUMERATEA  pDirectSoundCaptureEnumerateA = NULL;
+LPDIRECTSOUNDCAPTUREENUMERATEW  pDirectSoundCaptureEnumerateW = NULL;
+LPGETDEVICEID                   pGetDeviceID                  = NULL;
+LPDIRECTSOUNDFULLDUPLEXCREATE   pDirectSoundFullDuplexCreate  = NULL;
+LPDIRECTSOUNDCREATE8            pDirectSoundCreate8           = NULL;
+LPDIRECTSOUNDCAPTURECREATE8     pDirectSoundCaptureCreate8    = NULL;
+
+LPDLLCANUNLOADNOW               pDirectSoundDllCanUnloadNow   = NULL;
+LPDLLGETCLASSOBJECT             pDirectSoundDllGetClassObject = NULL;
+
+
+
+
+
 LPALCMAKECONTEXTCURRENT set_context;
 LPALCGETCURRENTCONTEXT get_context;
 BOOL local_contexts;
@@ -225,7 +246,7 @@ void (*EnterALSection)(ALCcontext *ctx) = EnterALSectionGlob;
 void (*LeaveALSection)(void) = LeaveALSectionGlob;
 
 
-static BOOL load_libopenal(void)
+static BOOL load_libs(void)
 {
     BOOL failed = FALSE;
     const char *str;
@@ -235,21 +256,23 @@ static BOOL load_libopenal(void)
         LogLevel = atoi(str);
 
     openal_handle = LoadLibraryW(aldriver_name);
-    if(!openal_handle)
+    dsound_handle = LoadLibraryW(dsound_name);
+    if(!openal_handle || !dsound_handle)
     {
-        ERR("Couldn't load %ls: %lu\n", aldriver_name, GetLastError());
+        ERR("Couldn't load libraries: %lu\n", GetLastError());
         return FALSE;
     }
 
 #define LOAD_FUNCPTR(f) do {                                     \
     union { void *ptr; FARPROC *proc; } func = { &p##f };        \
-    if((*func.proc = GetProcAddress(openal_handle, #f)) == NULL) \
+    if((*func.proc = GetProcAddress(LFPHANDLE, #f)) == NULL)     \
     {                                                            \
-        ERR("Couldn't lookup %s in %ls\n", #f, aldriver_name);   \
+        ERR("Couldn't GetProcAddress %s\n", #f);                 \
         failed = TRUE;                                           \
     }                                                            \
 } while(0)
-
+    
+#define LFPHANDLE openal_handle
     LOAD_FUNCPTR(alcCreateContext);
     LOAD_FUNCPTR(alcMakeContextCurrent);
     LOAD_FUNCPTR(alcProcessContext);
@@ -343,17 +366,45 @@ static BOOL load_libopenal(void)
     LOAD_FUNCPTR(alDopplerVelocity);
     LOAD_FUNCPTR(alDistanceModel);
     LOAD_FUNCPTR(alSpeedOfSound);
+
+#undef LFPHANDLE
+#define LFPHANDLE dsound_handle
+    LOAD_FUNCPTR(DirectSoundCreate);
+    LOAD_FUNCPTR(DirectSoundEnumerateA);
+    LOAD_FUNCPTR(DirectSoundEnumerateW);
+    LOAD_FUNCPTR(DirectSoundCaptureCreate);
+    LOAD_FUNCPTR(DirectSoundCaptureEnumerateA);
+    LOAD_FUNCPTR(DirectSoundCaptureEnumerateW);
+    LOAD_FUNCPTR(GetDeviceID);
+    LOAD_FUNCPTR(DirectSoundFullDuplexCreate);
+    LOAD_FUNCPTR(DirectSoundCreate8);
+    LOAD_FUNCPTR(DirectSoundCaptureCreate8);
+
+#undef LOAD_FUNCPTR 
+#define LOAD_FUNCPTR(f) do {                                            \
+    union { void *ptr; FARPROC *proc; } func = { &pDirectSound##f };    \
+    if((*func.proc = GetProcAddress(LFPHANDLE, #f)) == NULL)            \
+    {                                                                   \
+        ERR("Couldn't GetProcAddress DS %s\n", #f);                     \
+        failed = TRUE;                                                  \
+    }                                                                   \
+} while(0)
+    LOAD_FUNCPTR(DllCanUnloadNow);
+    LOAD_FUNCPTR(DllGetClassObject);
+    
 #undef LOAD_FUNCPTR
+#undef LFPHANDLE
     if (failed)
     {
-        WARN("Unloading %ls\n", aldriver_name);
-        if (openal_handle != NULL)
-            FreeLibrary(openal_handle);
+        WARN("Unloading libraries\n");
+        if (openal_handle != NULL) FreeLibrary(openal_handle);
+        if (dsound_handle != NULL) FreeLibrary(dsound_handle);
         openal_handle = NULL;
+        dsound_handle = NULL;
         return FALSE;
     }
 
-    openal_loaded = 1;
+    libs_loaded = 1;
     TRACE("Loaded %ls\n", aldriver_name);
 
 #define LOAD_FUNCPTR(f) p##f = alcGetProcAddress(NULL, #f)
@@ -720,7 +771,7 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
             else LogFile = f;
         }
 
-        if(!load_libopenal())
+        if(!load_libs())
             return FALSE;
         TlsThreadPtr = TlsAlloc();
         InitializeCriticalSection(&openal_crst);
@@ -737,13 +788,17 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
         break;
 
     case DLL_PROCESS_DETACH:
-        if(openal_handle)
-            FreeLibrary(openal_handle);
-        TlsFree(TlsThreadPtr);
-        DeleteCriticalSection(&openal_crst);
-        if(LogFile != stderr)
-            fclose(LogFile);
-        LogFile = stderr;
+        /* If process is exiting, do not risk cleanup.
+           OS will do this better than us.             */
+        if (!lpvReserved) {
+            if(openal_handle) FreeLibrary(openal_handle);
+            if(dsound_handle) FreeLibrary(dsound_handle);
+            TlsFree(TlsThreadPtr);
+            DeleteCriticalSection(&openal_crst);
+            if(LogFile != stderr)
+                fclose(LogFile);
+            LogFile = stderr;
+        }
         break;
     }
     return TRUE;

@@ -214,7 +214,7 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
 
     TRACE("Creating shared device %p\n", share);
     
-    hr = fnDirectSoundCreate8(guid, &pDS, NULL);
+    hr = pDirectSoundCreate8(guid, &pDS, NULL);
     if(SUCCEEDED(hr))
     {
         hr = IDirectSound8_GetSpeakerConfig(pDS, &(share->speaker_config));
@@ -972,7 +972,7 @@ static HRESULT WINAPI DS8_Initialize(IDirectSound8 *iface, const GUID *devguid)
 
     TRACE("(%p)->(%s)\n", iface, debugstr_guid(devguid));
 
-    if(!openal_loaded)
+    if(!libs_loaded)
         return DSERR_NODRIVER;
 
     if(This->share)
@@ -987,7 +987,7 @@ static HRESULT WINAPI DS8_Initialize(IDirectSound8 *iface, const GUID *devguid)
             IsEqualGUID(devguid, &DSDEVID_DefaultVoiceCapture))
         return DSERR_NODRIVER;
 
-    hr = fnGetDeviceID(devguid, &guid);
+    hr = pGetDeviceID(devguid, &guid);
     if(FAILED(hr)) return hr;
 
     EnterCriticalSection(&openal_crst);

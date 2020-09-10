@@ -2,7 +2,7 @@
 set gccbase=G:\p_files\rtdk\i686-8.1.0-win32-dwarf-rt_v6-rev0\mingw32\bin
 
 set opts=-std=c99 -mconsole -Wall -Wextra -Os -s
-set opts=%opts% -shared -Wl,--enable-stdcall-fixup -static-libgcc -DCOBJMACROS -DDS_STATIC_PROXY
+set opts=%opts% -shared -Wl,--enable-stdcall-fixup -static-libgcc -DCOBJMACROS
 
 set linkinc=-Iinclude/AL -lole32
 set files=buffer.c bypass.c chorus.c debug.c dsound8.c dsound_main.c duplex.c eax.c eax4.c primary.c propset.c reverb.c

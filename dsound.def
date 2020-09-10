@@ -1,21 +1,5 @@
 LIBRARY DSOUND.dll
 
-IMPORTS
-;This will fail if dsound.dll is in system instead
-fnDirectSoundCreate               = system32/dsound.DirectSoundCreate
-fnDirectSoundEnumerateA           = system32/dsound.DirectSoundEnumerateA
-fnDirectSoundEnumerateW           = system32/dsound.DirectSoundEnumerateW
-fnDirectSoundCaptureCreate        = system32/dsound.DirectSoundCaptureCreate
-fnDirectSoundCaptureEnumerateA    = system32/dsound.DirectSoundCaptureEnumerateA
-fnDirectSoundCaptureEnumerateW    = system32/dsound.DirectSoundCaptureEnumerateW
-fnGetDeviceID                     = system32/dsound.GetDeviceID
-fnDirectSoundFullDuplexCreate     = system32/dsound.DirectSoundFullDuplexCreate
-fnDirectSoundCreate8              = system32/dsound.DirectSoundCreate8
-fnDirectSoundCaptureCreate8       = system32/dsound.DirectSoundCaptureCreate8
-
-fnDirectSoundDllCanUnloadNow      = system32/dsound.DllCanUnloadNow
-fnDirectSoundDllGetClassObject    = system32/dsound.DllGetClassObject
-
 EXPORTS
 DirectSoundCreate               = DSOAL_DirectSoundCreate             @1
 DirectSoundEnumerateA           = DSOAL_DirectSoundEnumerateA         @2
