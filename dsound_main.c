@@ -55,14 +55,6 @@
 int LogLevel = 1;
 FILE *LogFile;
 
-
-typedef struct DeviceList {
-    GUID *Guids;
-    size_t Count;
-} DeviceList;
-static DeviceList PlaybackDevices = { NULL, 0 };
-static DeviceList CaptureDevices = { NULL, 0 };
-
 const WCHAR aldriver_name[] = L"dsoal-aldrv.dll";
 
 
@@ -745,13 +737,6 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
         break;
 
     case DLL_PROCESS_DETACH:
-        HeapFree(GetProcessHeap(), 0, PlaybackDevices.Guids);
-        PlaybackDevices.Guids = NULL;
-        PlaybackDevices.Count = 0;
-        HeapFree(GetProcessHeap(), 0, CaptureDevices.Guids);
-        CaptureDevices.Guids = NULL;
-        CaptureDevices.Count = 0;
-
         if(openal_handle)
             FreeLibrary(openal_handle);
         TlsFree(TlsThreadPtr);
