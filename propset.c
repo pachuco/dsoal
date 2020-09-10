@@ -31,9 +31,6 @@
 
 #include "dsound_private.h"
 
-
-DEFINE_DEVPROPKEY(DEVPKEY_Device_FriendlyName, 0xa45c254e,0xdf1c,0x4efd,0x80,0x20,0x67,0xd1,0x46,0xa8,0x50,0xe0, 14);
-
 static WCHAR *strdupW(const WCHAR *str)
 {
     WCHAR *ret;
@@ -198,7 +195,7 @@ static HRESULT DSPROPERTY_WaveDeviceMappingA(
 
 typedef struct {
     BOOL isFound;
-    LPGUID  wantedGUID;
+    LPGUID wantedGUID;
     PDSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA ppd;
 } DSEnumW;
 

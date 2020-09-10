@@ -926,65 +926,6 @@ static BOOL send_device(IMMDevice *device, EDataFlow flow, DeviceList *devlist, 
     return keep_going;
 }
 
-HRESULT get_mmdevice(EDataFlow flow, const GUID *tgt, IMMDevice **device)
-{
-    IMMDeviceEnumerator *devenum;
-    IMMDeviceCollection *coll;
-    UINT count, i;
-    HRESULT hr, init_hr;
-
-    init_hr = get_mmdevenum(&devenum);
-    if(!devenum) return init_hr;
-
-    hr = IMMDeviceEnumerator_EnumAudioEndpoints(devenum, flow, DEVICE_STATE_ACTIVE, &coll);
-    if(FAILED(hr))
-    {
-        WARN("EnumAudioEndpoints failed: %08lx\n", hr);
-        release_mmdevenum(devenum, init_hr);
-        return hr;
-    }
-
-    hr = IMMDeviceCollection_GetCount(coll, &count);
-    if(FAILED(hr))
-    {
-        IMMDeviceCollection_Release(coll);
-        release_mmdevenum(devenum, init_hr);
-        WARN("GetCount failed: %08lx\n", hr);
-        return hr;
-    }
-
-    for(i = 0; i < count;++i)
-    {
-        GUID guid;
-
-        hr = IMMDeviceCollection_Item(coll, i, device);
-        if(FAILED(hr)) continue;
-
-        hr = get_mmdevice_guid(*device, NULL, &guid);
-        if(FAILED(hr))
-        {
-            IMMDevice_Release(*device);
-            continue;
-        }
-
-        if(IsEqualGUID(&guid, tgt))
-        {
-            IMMDeviceCollection_Release(coll);
-            release_mmdevenum(devenum, init_hr);
-            return DS_OK;
-        }
-
-        IMMDevice_Release(*device);
-    }
-
-    WARN("No device with GUID %s found!\n", debugstr_guid(tgt));
-
-    IMMDeviceCollection_Release(coll);
-    release_mmdevenum(devenum, init_hr);
-
-    return DSERR_INVALIDPARAM;
-}
-
 /* S_FALSE means the callback returned FALSE at some point
  * S_OK means the callback always returned TRUE */
 HRESULT enumerate_mmdevices(EDataFlow flow, PRVTENUMCALLBACK cb, void *user)
