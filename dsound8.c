@@ -1002,6 +1002,8 @@ static HRESULT WINAPI DS8_Initialize(IDirectSound8 *iface, const GUID *devguid)
         WARN("Device already initialized\n");
         return DSERR_ALREADYINITIALIZED;
     }
+    
+    CoInitialize(NULL);
 
     if(!devguid || IsEqualGUID(devguid, &GUID_NULL))
         devguid = &DSDEVID_DefaultPlayback;
@@ -1026,7 +1028,7 @@ static HRESULT WINAPI DS8_Initialize(IDirectSound8 *iface, const GUID *devguid)
             break;
         }
     }
-
+    
     if(!This->share)
         hr = DSShare_Create(&guid, &This->share);
     if(SUCCEEDED(hr))

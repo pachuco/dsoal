@@ -796,7 +796,6 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
     switch(fdwReason)
     {
     case DLL_PROCESS_ATTACH:
-        CoInitialize(NULL);  //bad
         LogFile = stderr;
         if((wstr=_wgetenv(L"DSOAL_LOGFILE")) != NULL && wstr[0] != 0)
         {
@@ -825,7 +824,6 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
         /* If process is exiting, do not risk cleanup.
            OS will do this better than us.             */
         if (!lpvReserved) {
-            CoUninitialize(); //bad
             if(openal_handle) FreeLibrary(openal_handle);
             if(dsound_handle) FreeLibrary(dsound_handle);
             TlsFree(TlsThreadPtr);
