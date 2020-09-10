@@ -120,6 +120,7 @@ extern FILE *LogFile;
 const char *wine_dbg_sprintf( const char *format, ... );
 const char *wine_dbgstr_wn( const WCHAR *str, int n );
 const char *debugstr_guid( const GUID *id );
+void odsPrint(const CHAR* fmt, ...);
 
 static inline const char *debugstr_w( const WCHAR *s ) { return wine_dbgstr_wn( s, -1 ); }
 
@@ -926,3 +927,8 @@ extern const WCHAR aldriver_name[];
 #define DECLSPEC_EXPORT
 #endif
 #endif
+
+
+CHAR *strdupA(const CHAR *str);
+WCHAR *strdupW(const WCHAR *str);
+void freedup(void *ptr);

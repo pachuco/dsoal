@@ -29,20 +29,6 @@
 
 #include "dsound_private.h"
 
-static WCHAR *strdupW(const WCHAR *str)
-{
-    WCHAR *ret;
-    int l = lstrlenW(str);
-    if(l < 0) return NULL;
-
-    ret = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (l+1)*sizeof(WCHAR));
-    if(!ret) return NULL;
-
-    memcpy(ret, str, l*sizeof(WCHAR));
-    return ret;
-}
-
-
 typedef struct IKsPrivatePropertySetImpl
 {
     IKsPropertySet IKsPropertySet_iface;
@@ -103,7 +89,7 @@ typedef struct {
     const WCHAR* wantedName;
 } UserDatSearchByNameW;
 
-static BOOL CALLBACK cbSearchByName(LPGUID lpGuid, LPCWSTR lpcstrDescription, LPCWSTR lpcstrModule, LPVOID lpContext)
+static BOOL CALLBACK cbSearchByNameW(LPGUID lpGuid, LPCWSTR lpcstrDescription, LPCWSTR lpcstrModule, LPVOID lpContext)
 {
     UserDatSearchByNameW* user = lpContext;
     (void)lpcstrModule;
@@ -139,9 +125,9 @@ static HRESULT DSPROPERTY_WaveDeviceMappingW(
     user.foundGuid  = &ppd->DeviceId;
 
     if (ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_RENDER)
-        hr = pDirectSoundEnumerateW(&cbSearchByName, &user);
+        hr = pDirectSoundEnumerateW(&cbSearchByNameW, &user);
     else if (ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE)
-        hr = pDirectSoundCaptureEnumerateW(&cbSearchByName, &user);
+        hr = pDirectSoundCaptureEnumerateW(&cbSearchByNameW, &user);
     else
         return DSERR_INVALIDPARAM;
 
@@ -196,10 +182,12 @@ typedef struct {
     PDSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA ppd;
 } UserDatSearchByGuidW;
 
-static BOOL CALLBACK cbSearchByGUID(LPGUID lpGuid, LPCWSTR lpcstrDescription, LPCWSTR lpcstrModule, LPVOID lpContext)
+static BOOL CALLBACK cbSearchByGuidW(LPGUID lpGuid, LPCWSTR lpcstrDescription, LPCWSTR lpcstrModule, LPVOID lpContext)
 {
     UserDatSearchByGuidW* user = lpContext;
     (void)lpcstrModule;
+    
+    if (!lpGuid) return TRUE;
     
     user->isFound = FALSE;
     if (IsEqualGUID(user->wantedGuid, lpGuid)) {
@@ -242,15 +230,15 @@ static HRESULT DSPROPERTY_DescriptionW(
     pGetDeviceID(&ppd->DeviceId, &dev_guid);
     
     user.wantedGuid = &dev_guid;
-    hr = pDirectSoundEnumerateW(&cbSearchByGUID, &user);
+    hr = pDirectSoundEnumerateW(&cbSearchByGuidW, &user);
     if (FAILED(hr) || !user.isFound) {
-        hr = pDirectSoundCaptureEnumerateW(&cbSearchByGUID, &user);
+        hr = pDirectSoundCaptureEnumerateW(&cbSearchByGuidW, &user);
         if (FAILED(hr) || !user.isFound) {
             return DSERR_INVALIDPARAM;
         }
     }
     
-    ppd->Module = strdupW(aldriver_name);
+    ppd->Module    = strdupW(aldriver_name);
     ppd->Interface = strdupW(L"Interface");
     ppd->Type = DIRECTSOUNDDEVICE_TYPE_WDM;
 
@@ -264,12 +252,11 @@ static HRESULT DSPROPERTY_DescriptionW(
 }
 
 typedef struct {
-    LPGUID wantedGuid;
     PDSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA ppd;
     DIRECTSOUNDDEVICE_DATAFLOW DataFlow;
 } UserDatEnumerateW;
 
-static BOOL CALLBACK cbEnumerate(LPGUID lpGuid, LPCWSTR lpcstrDescription, LPCWSTR lpcstrModule, LPVOID lpContext)
+static BOOL CALLBACK cbEnumerateW(LPGUID lpGuid, LPCWSTR lpcstrDescription, LPCWSTR lpcstrModule, LPVOID lpContext)
 {
     UserDatEnumerateW* user = lpContext;
     DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA data;
@@ -296,8 +283,8 @@ static BOOL CALLBACK cbEnumerate(LPGUID lpGuid, LPCWSTR lpcstrDescription, LPCWS
     
     ret = user->ppd->Callback(&data, user->ppd->Context);
 
-    HeapFree(GetProcessHeap(), 0, data.Module);
-    HeapFree(GetProcessHeap(), 0, data.Description);
+    freedup(data.Module);
+    freedup(data.Description);
 
     return ret;
 }
@@ -325,10 +312,10 @@ static HRESULT DSPROPERTY_EnumerateW(
     
     user.ppd = ppd;
     user.DataFlow = DIRECTSOUNDDEVICE_DATAFLOW_RENDER;
-    hr = pDirectSoundEnumerateW(&cbEnumerate, &user);
+    hr = pDirectSoundEnumerateW(&cbEnumerateW, &user);
     if(hr == S_OK) {        
         user.DataFlow = DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE;
-        hr = pDirectSoundCaptureEnumerateW(&cbEnumerate, &user);
+        hr = pDirectSoundCaptureEnumerateW(&cbEnumerateW, &user);
     }
     
     return SUCCEEDED(hr) ? DS_OK : hr;

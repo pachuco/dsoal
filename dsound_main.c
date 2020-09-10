@@ -493,6 +493,39 @@ static void LeaveALSectionGlob(void)
     LeaveCriticalSection(&openal_crst);
 }
 
+
+
+CHAR *strdupA(const CHAR *str)
+{
+    CHAR *ret;
+    int l = lstrlenA(str);
+    if(l < 0) return NULL;
+
+    ret = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (l+1)*sizeof(CHAR));
+    if(!ret) return NULL;
+
+    memcpy(ret, str, l*sizeof(CHAR));
+    return ret;
+}
+
+WCHAR *strdupW(const WCHAR *str)
+{
+    WCHAR *ret;
+    int l = lstrlenW(str);
+    if(l < 0) return NULL;
+
+    ret = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (l+1)*sizeof(WCHAR));
+    if(!ret) return NULL;
+
+    memcpy(ret, str, l*sizeof(WCHAR));
+    return ret;
+}
+
+void freedup(void *ptr)
+{
+    HeapFree(GetProcessHeap(), 0, ptr);
+}
+
 /*******************************************************************************
  *      DirectSoundCreate (DSOUND.1)
  *
@@ -763,6 +796,7 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
     switch(fdwReason)
     {
     case DLL_PROCESS_ATTACH:
+        CoInitialize(NULL);  //bad
         LogFile = stderr;
         if((wstr=_wgetenv(L"DSOAL_LOGFILE")) != NULL && wstr[0] != 0)
         {
@@ -776,7 +810,7 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
         TlsThreadPtr = TlsAlloc();
         InitializeCriticalSection(&openal_crst);
         /* Increase refcount on dsound by 1 */
-        GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)hInstDLL, &hInstDLL);
+        //GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)hInstDLL, &hInstDLL);
         break;
 
     case DLL_THREAD_ATTACH:
@@ -791,6 +825,7 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
         /* If process is exiting, do not risk cleanup.
            OS will do this better than us.             */
         if (!lpvReserved) {
+            CoUninitialize(); //bad
             if(openal_handle) FreeLibrary(openal_handle);
             if(dsound_handle) FreeLibrary(dsound_handle);
             TlsFree(TlsThreadPtr);

@@ -115,3 +115,15 @@ const char *debugstr_guid( const GUID *id )
                              id->Data4[0], id->Data4[1], id->Data4[2], id->Data4[3],
                              id->Data4[4], id->Data4[5], id->Data4[6], id->Data4[7] );
 }
+
+
+#define MAXBUF 2048
+void odsPrint(const CHAR* fmt, ...) {
+    va_list args;
+    char buf[MAXBUF];
+    
+    va_start(args, fmt);
+    vsnprintf(buf, MAXBUF, fmt, args);
+    va_end(args);
+    OutputDebugStringA(buf);
+}

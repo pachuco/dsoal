@@ -183,6 +183,31 @@ static void DSShare_Destroy(DeviceShare *share)
     TRACE("Closed shared device %p\n", share);
 }
 
+typedef struct {
+    BOOL isFound;
+    LPCGUID wantedGuid;
+    CHAR foundName[128];
+} UserDatSearchByGuidA;
+
+static BOOL CALLBACK cbSearchByGuidA(LPGUID lpGuid, LPCSTR lpcstrDescription, LPCSTR lpcstrModule, LPVOID lpContext)
+{
+    UserDatSearchByGuidA* user = lpContext;
+    (void)lpcstrModule;
+    
+    TRACE("cbSearchByGuidA: lpGuid %p, lpcstrDescription %s, lpcstrModule %s, lpContext %p", lpGuid, lpcstrDescription, lpcstrModule, lpContext);
+    if (!lpGuid) return TRUE;
+    
+    user->isFound = FALSE;
+    if (IsEqualGUID(user->wantedGuid, lpGuid)) {
+        user->isFound = TRUE;
+        //this is what it requires?
+        snprintf(user->foundName, 128, "OpenAL Soft on %s", lpcstrDescription);
+        return FALSE;
+    }
+    
+    return TRUE;
+}
+
 static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
 {
     static const struct {
@@ -197,15 +222,14 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         { "AL_SOFTX_filter_gain_ex",   SOFTX_FILTER_GAIN_EX },
         { "AL_SOFTX_map_buffer",       SOFTX_MAP_BUFFER },
     };
-    OLECHAR *guid_str = NULL;
-    ALchar drv_name[64];
+    UserDatSearchByGuidA user = {0};
     DeviceShare *share;
     IDirectSound8* pDS;
     ALCint attrs[7];
     void *temp;
     HRESULT hr;
     ALsizei i;
-
+    
     share = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*share));
     if(!share) return DSERR_OUTOFMEMORY;
     share->ref = 1;
@@ -223,24 +247,22 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     }
 
     InitializeCriticalSection(&share->crst);
-
-    hr = StringFromCLSID(guid, &guid_str);
-    if(FAILED(hr))
+    
+    user.wantedGuid = guid;
+    hr = pDirectSoundEnumerateA(&cbSearchByGuidA, &user);
+    if(FAILED(hr) || !user.isFound)
     {
-        ERR("Failed to convert GUID to string\n");
+        ERR("Failed to get device name by GUID\n");
         goto fail;
     }
-    WideCharToMultiByte(CP_UTF8, 0, guid_str, -1, drv_name, sizeof(drv_name), NULL, NULL);
-    drv_name[sizeof(drv_name)-1] = 0;
-    CoTaskMemFree(guid_str);
-    guid_str = NULL;
 
     hr = DSERR_NODRIVER;
-    share->device = alcOpenDevice(drv_name);
+    share->device = alcOpenDevice(user.foundName);
+    //freedup(user.foundName);
     if(!share->device)
     {
         alcGetError(NULL);
-        WARN("Couldn't open device \"%s\"\n", drv_name);
+        WARN("Couldn't open device \"%s\"\n", user.foundName);
         goto fail;
     }
     TRACE("Opened AL device: %s\n",
