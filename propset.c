@@ -27,8 +27,6 @@
 #include "dsound_wrap.h"
 #include <dsconf.h>
 
-#include "mmsys_crud.h"
-
 #include "dsound_private.h"
 
 static WCHAR *strdupW(const WCHAR *str)
@@ -101,13 +99,13 @@ static ULONG WINAPI IKsPrivatePropertySetImpl_Release(LPKSPROPERTYSET iface)
 
 typedef struct {
     BOOL isFound;
-    LPGUID foundGUID;
+    LPGUID foundGuid;
     const WCHAR* wantedName;
-} UserDatSearchByName;
+} UserDatSearchByNameW;
 
 static BOOL CALLBACK cbSearchByName(LPGUID lpGuid, LPCWSTR lpcstrDescription, LPCWSTR lpcstrModule, LPVOID lpContext)
 {
-    UserDatSearchByName* user = lpContext;
+    UserDatSearchByNameW* user = lpContext;
     (void)lpcstrModule;
     
     user->isFound = FALSE;
@@ -115,7 +113,7 @@ static BOOL CALLBACK cbSearchByName(LPGUID lpGuid, LPCWSTR lpcstrDescription, LP
         return TRUE;
     
     user->isFound = TRUE;
-    *user->foundGUID = *lpGuid;
+    *user->foundGuid = *lpGuid;
     return FALSE;
 }
 
@@ -126,7 +124,7 @@ static HRESULT DSPROPERTY_WaveDeviceMappingW(
 {
     HRESULT hr;
     PDSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W_DATA ppd = pPropData;
-    UserDatSearchByName user = {0};
+    UserDatSearchByNameW user = {0};
 
     TRACE("(pPropData=%p,cbPropData=%ld,pcbReturned=%p)\n",
           pPropData,cbPropData,pcbReturned);
@@ -138,7 +136,7 @@ static HRESULT DSPROPERTY_WaveDeviceMappingW(
     }
 
     user.wantedName = ppd->DeviceName;
-    user.foundGUID  = &ppd->DeviceId;
+    user.foundGuid  = &ppd->DeviceId;
 
     if (ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_RENDER)
         hr = fnDirectSoundEnumerateW(&cbSearchByName, &user);
@@ -194,17 +192,17 @@ static HRESULT DSPROPERTY_WaveDeviceMappingA(
 
 typedef struct {
     BOOL isFound;
-    LPGUID wantedGUID;
+    LPGUID wantedGuid;
     PDSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA ppd;
-} UserDatSearchByGUID;
+} UserDatSearchByGuidW;
 
 static BOOL CALLBACK cbSearchByGUID(LPGUID lpGuid, LPCWSTR lpcstrDescription, LPCWSTR lpcstrModule, LPVOID lpContext)
 {
-    UserDatSearchByGUID* user = lpContext;
+    UserDatSearchByGuidW* user = lpContext;
     (void)lpcstrModule;
     
     user->isFound = FALSE;
-    if (IsEqualGUID(user->wantedGUID, lpGuid)) {
+    if (IsEqualGUID(user->wantedGuid, lpGuid)) {
         user->isFound = TRUE;
         user->ppd->Description = strdupW(lpcstrDescription);
         return FALSE;
@@ -220,7 +218,7 @@ static HRESULT DSPROPERTY_DescriptionW(
 {
     PDSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA ppd = pPropData;
     GUID dev_guid;
-    UserDatSearchByGUID user;
+    UserDatSearchByGuidW user;
     HRESULT hr;
 
     TRACE("pPropData=%p,cbPropData=%ld,pcbReturned=%p)\n",
@@ -243,7 +241,7 @@ static HRESULT DSPROPERTY_DescriptionW(
 
     fnGetDeviceID(&ppd->DeviceId, &dev_guid);
     
-    user.wantedGUID = &dev_guid;
+    user.wantedGuid = &dev_guid;
     hr = fnDirectSoundEnumerateW(&cbSearchByGUID, &user);
     if (FAILED(hr) || !user.isFound) {
         hr = fnDirectSoundCaptureEnumerateW(&cbSearchByGUID, &user);
@@ -265,36 +263,38 @@ static HRESULT DSPROPERTY_DescriptionW(
     return S_OK;
 }
 
-static
-BOOL CALLBACK enum_callback(EDataFlow flow, GUID *guid, const WCHAR *desc, const WCHAR *module,
-        void *user)
+typedef struct {
+    LPGUID wantedGuid;
+    PDSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA ppd;
+    DIRECTSOUNDDEVICE_DATAFLOW DataFlow;
+} UserDatEnumerateW;
+
+static BOOL CALLBACK cbEnumerate(LPGUID lpGuid, LPCWSTR lpcstrDescription, LPCWSTR lpcstrModule, LPVOID lpContext)
 {
-    PDSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA ppd = user;
+    UserDatEnumerateW* user = lpContext;
     DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA data;
     DWORD len;
     BOOL ret;
-
-    TRACE("%s %ls %ls %p\n", debugstr_guid(guid), desc, module, user);
-
-    if(!guid)
-        return TRUE;
-
+    
+    TRACE("%s %ls %ls %p\n", debugstr_guid(lpGuid), lpcstrDescription, lpcstrModule, user->ppd);
+    
+    if (!lpGuid) return TRUE;
+    
     data.Type = DIRECTSOUNDDEVICE_TYPE_WDM;
-    data.DataFlow = (flow==eCapture) ? DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE :
-                                       DIRECTSOUNDDEVICE_DATAFLOW_RENDER;
-    data.DeviceId = *guid;
-
-    len = lstrlenW(module) + 1;
+    data.DataFlow = user->DataFlow;
+    data.DeviceId = *lpGuid;
+    
+    len = lstrlenW(lpcstrModule) + 1;
     data.Module = HeapAlloc(GetProcessHeap(), 0, len * sizeof(WCHAR));
-    memcpy(data.Module, module, len * sizeof(WCHAR));
+    memcpy(data.Module, lpcstrModule, len * sizeof(WCHAR));
 
-    len = lstrlenW(desc) + 1;
+    len = lstrlenW(lpcstrDescription) + 1;
     data.Description = HeapAlloc(GetProcessHeap(), 0, len * sizeof(WCHAR));
-    memcpy(data.Description, desc, len * sizeof(WCHAR));
-
+    memcpy(data.Description, lpcstrDescription, len * sizeof(WCHAR));
+    
     data.Interface = L"Interface";
-
-    ret = ppd->Callback(&data, ppd->Context);
+    
+    ret = user->ppd->Callback(&data, user->ppd->Context);
 
     HeapFree(GetProcessHeap(), 0, data.Module);
     HeapFree(GetProcessHeap(), 0, data.Description);
@@ -308,6 +308,7 @@ static HRESULT DSPROPERTY_EnumerateW(
     PULONG pcbReturned )
 {
     PDSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA ppd = pPropData;
+    UserDatEnumerateW user = {0};
     HRESULT hr;
 
     TRACE("(pPropData=%p,cbPropData=%ld,pcbReturned=%p)\n",
@@ -321,11 +322,15 @@ static HRESULT DSPROPERTY_EnumerateW(
         WARN("Invalid ppd %p\n", ppd);
         return E_PROP_ID_UNSUPPORTED;
     }
-
-    hr = enumerate_mmdevices(eRender, enum_callback, ppd);
-    if(hr == S_OK)
-        hr = enumerate_mmdevices(eCapture, enum_callback, ppd);
-
+    
+    user.ppd = ppd;
+    user.DataFlow = DIRECTSOUNDDEVICE_DATAFLOW_RENDER;
+    hr = DirectSoundEnumerateW(&cbEnumerate, &user);
+    if(hr == S_OK) {        
+        user.DataFlow = DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE;
+        hr = DirectSoundCaptureEnumerateW(&cbEnumerate, &user);
+    }
+    
     return SUCCEEDED(hr) ? DS_OK : hr;
 }
 
