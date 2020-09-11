@@ -313,7 +313,7 @@ static HRESULT DSPROPERTY_EnumerateW(
     user.ppd = ppd;
     user.DataFlow = DIRECTSOUNDDEVICE_DATAFLOW_RENDER;
     hr = pDirectSoundEnumerateW(&cbEnumerateW, &user);
-    if(hr == S_OK) {        
+    if(SUCCEEDED(hr)) {        
         user.DataFlow = DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE;
         hr = pDirectSoundCaptureEnumerateW(&cbEnumerateW, &user);
     }

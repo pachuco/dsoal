@@ -246,21 +246,32 @@ void (*EnterALSection)(ALCcontext *ctx) = EnterALSectionGlob;
 void (*LeaveALSection)(void) = LeaveALSectionGlob;
 
 
-static BOOL load_libs(void)
+static BOOL hasAttemptedLoad = FALSE;
+void lazyLoad(void)
 {
     BOOL failed = FALSE;
     const char *str;
-
+    
+    if (hasAttemptedLoad) return;
+    EnterCriticalSection(&openal_crst);
+    if (hasAttemptedLoad) return;
+    hasAttemptedLoad = TRUE;
+    
     str = getenv("DSOAL_LOGLEVEL");
     if(str && *str)
         LogLevel = atoi(str);
 
     openal_handle = LoadLibraryW(aldriver_name);
-    dsound_handle = LoadLibraryW(dsound_name);
-    if(!openal_handle || !dsound_handle)
+    if(!openal_handle)
     {
-        ERR("Couldn't load libraries: %lu\n", GetLastError());
-        return FALSE;
+        ERR("Couldn't load openal: %lu\n", GetLastError());
+        goto L_FAIL;
+    }
+    dsound_handle = LoadLibraryW(dsound_name);
+    if(!dsound_handle)
+    {
+        ERR("Couldn't load dsound: %lu\n", GetLastError());
+        goto L_FAIL;
     }
 
 #define LOAD_FUNCPTR(f) do {                                     \
@@ -394,17 +405,11 @@ static BOOL load_libs(void)
     
 #undef LOAD_FUNCPTR
 #undef LFPHANDLE
-    if (failed)
-    {
+    if (failed) {
         WARN("Unloading libraries\n");
-        if (openal_handle != NULL) FreeLibrary(openal_handle);
-        if (dsound_handle != NULL) FreeLibrary(dsound_handle);
-        openal_handle = NULL;
-        dsound_handle = NULL;
-        return FALSE;
+        goto L_FAIL;
     }
 
-    libs_loaded = 1;
     TRACE("Loaded %ls\n", aldriver_name);
 
 #define LOAD_FUNCPTR(f) p##f = alcGetProcAddress(NULL, #f)
@@ -457,8 +462,30 @@ static BOOL load_libs(void)
         EnterALSection = EnterALSectionTLS;
         LeaveALSection = LeaveALSectionTLS;
     }
-
-    return TRUE;
+    
+    libs_loaded = 1;
+    
+    LeaveCriticalSection(&openal_crst);
+    
+    const WCHAR *wstr;
+    LogFile = stderr;
+    if((wstr=_wgetenv(L"DSOAL_LOGFILE")) != NULL && wstr[0] != 0)
+    {
+        FILE *f = _wfopen(wstr, L"wt");
+        if(!f) ERR("Failed to open log file %ls\n", wstr);
+        else LogFile = f;
+    }
+    
+    TlsThreadPtr = TlsAlloc();
+    return;
+    
+    
+    L_FAIL:
+        if (openal_handle != NULL) FreeLibrary(openal_handle);
+        if (dsound_handle != NULL) FreeLibrary(dsound_handle);
+        openal_handle = NULL;
+        dsound_handle = NULL;
+        LeaveCriticalSection(&openal_crst);
 }
 
 
@@ -544,6 +571,7 @@ void freedup(void *ptr)
 HRESULT WINAPI
 DSOAL_DirectSoundCreate(LPCGUID lpcGUID, IDirectSound **ppDS, IUnknown *pUnkOuter)
 {
+    lazyLoad();
     HRESULT hr;
     void *pDS;
 
@@ -593,6 +621,7 @@ DSOAL_DirectSoundCreate(LPCGUID lpcGUID, IDirectSound **ppDS, IUnknown *pUnkOute
 HRESULT WINAPI
 DSOAL_DirectSoundCreate8(LPCGUID lpcGUID, IDirectSound8 **ppDS, IUnknown *pUnkOuter)
 {
+    lazyLoad();
     HRESULT hr;
     void *pDS;
 
@@ -740,6 +769,7 @@ static IClassFactoryImpl DSOUND_CF[] = {
  */
 HRESULT WINAPI DSOAL_DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv)
 {
+    lazyLoad();
     int i = 0;
     TRACE("(%s, %s, %p)\n", debugstr_guid(rclsid), debugstr_guid(riid), ppv);
 
@@ -780,6 +810,7 @@ HRESULT WINAPI DSOAL_DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv
  */
 HRESULT WINAPI DSOAL_DllCanUnloadNow(void)
 {
+    lazyLoad();
     FIXME("(void): stub\n");
     return S_FALSE;
 }
@@ -789,24 +820,11 @@ HRESULT WINAPI DSOAL_DllCanUnloadNow(void)
  */
 DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
-    const WCHAR *wstr;
-
     TRACE("(%p, %lu, %p)\n", hInstDLL, fdwReason, lpvReserved);
 
     switch(fdwReason)
     {
     case DLL_PROCESS_ATTACH:
-        LogFile = stderr;
-        if((wstr=_wgetenv(L"DSOAL_LOGFILE")) != NULL && wstr[0] != 0)
-        {
-            FILE *f = _wfopen(wstr, L"wt");
-            if(!f) ERR("Failed to open log file %ls\n", wstr);
-            else LogFile = f;
-        }
-
-        if(!load_libs())
-            return FALSE;
-        TlsThreadPtr = TlsAlloc();
         InitializeCriticalSection(&openal_crst);
         /* Increase refcount on dsound by 1 */
         //GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)hInstDLL, &hInstDLL);

@@ -198,6 +198,7 @@ static inline int fallback_ctz64(DWORD64 value)
 
 
 extern int libs_loaded;
+void lazyLoad(void);
 
 /* All openal functions */
 extern LPALCCREATECONTEXT palcCreateContext;
@@ -927,7 +928,6 @@ extern const WCHAR aldriver_name[];
 #define DECLSPEC_EXPORT
 #endif
 #endif
-
 
 CHAR *strdupA(const CHAR *str);
 WCHAR *strdupW(const WCHAR *str);

@@ -13,31 +13,31 @@
 HRESULT DSOUND_CaptureCreate8(REFIID riid, void **cap)
 {
     IClassFactory* pFact;
-    HRESULT ret = pDirectSoundDllGetClassObject(&IID_IClassFactory, riid, (void**)&pFact);
+    HRESULT hr = pDirectSoundDllGetClassObject(&IID_IClassFactory, riid, (void**)&pFact);
     
     *cap = NULL;
-    if (ret == S_OK) {
-        ret = IClassFactory_CreateInstance(pFact, NULL, &IID_IDirectSoundCapture8, cap);
+    if (SUCCEEDED(hr)) {
+        hr = IClassFactory_CreateInstance(pFact, NULL, &IID_IDirectSoundCapture8, cap);
         
         IClassFactory_Release(pFact);
     }
     
-    return ret;
+    return hr;
 }
 
 HRESULT DSOUND_CaptureCreate(REFIID riid, void **cap)
 {
     IClassFactory* pFact;
-    HRESULT ret = pDirectSoundDllGetClassObject(&IID_IClassFactory, riid, (void**)&pFact);
+    HRESULT hr = pDirectSoundDllGetClassObject(&IID_IClassFactory, riid, (void**)&pFact);
     
     *cap = NULL;
-    if (ret == S_OK) {
-        ret = IClassFactory_CreateInstance(pFact, NULL, &IID_IDirectSoundCapture, cap);
+    if (SUCCEEDED(hr)) {
+        hr = IClassFactory_CreateInstance(pFact, NULL, &IID_IDirectSoundCapture, cap);
         
         IClassFactory_Release(pFact);
     }
     
-    return ret;
+    return hr;
 }
 
 /***************************************************************************
@@ -62,6 +62,7 @@ HRESULT DSOUND_CaptureCreate(REFIID riid, void **cap)
  */
 HRESULT WINAPI DSOAL_GetDeviceID(LPCGUID pGuidSrc, LPGUID pGuidDest)
 {
+    lazyLoad();
     return pGetDeviceID(pGuidSrc, pGuidDest);
 }
 
@@ -82,6 +83,7 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateA(
     LPDSENUMCALLBACKA lpDSEnumCallback,
     LPVOID lpContext)
 {
+    lazyLoad();
     return pDirectSoundEnumerateA(lpDSEnumCallback, lpContext);
 }
 
@@ -102,6 +104,7 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateW(
     LPDSENUMCALLBACKW lpDSEnumCallback,
     LPVOID lpContext )
 {
+    lazyLoad();
     return pDirectSoundEnumerateW(lpDSEnumCallback, lpContext);
 }
 
@@ -122,6 +125,7 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateA(
     LPDSENUMCALLBACKA lpDSEnumCallback,
     LPVOID lpContext)
 {
+    lazyLoad();
     return pDirectSoundCaptureEnumerateA(lpDSEnumCallback, lpContext);
 }
 
@@ -142,6 +146,7 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateW(
     LPDSENUMCALLBACKW lpDSEnumCallback,
     LPVOID lpContext)
 {
+    lazyLoad();
     return pDirectSoundCaptureEnumerateW(lpDSEnumCallback, lpContext);
 }
 
@@ -170,6 +175,7 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateW(
 HRESULT WINAPI
 DSOAL_DirectSoundCaptureCreate(LPCGUID lpcGUID, IDirectSoundCapture **ppDSC, IUnknown *pUnkOuter)
 {
+    lazyLoad();
     return pDirectSoundCaptureCreate(lpcGUID, ppDSC, pUnkOuter);
 }
 
@@ -198,5 +204,6 @@ DSOAL_DirectSoundCaptureCreate(LPCGUID lpcGUID, IDirectSoundCapture **ppDSC, IUn
 HRESULT WINAPI
 DSOAL_DirectSoundCaptureCreate8(LPCGUID lpcGUID, IDirectSoundCapture8 **ppDSC8, IUnknown *pUnkOuter)
 {
+    lazyLoad();
     return pDirectSoundCaptureCreate8(lpcGUID, ppDSC8, pUnkOuter);
 }
