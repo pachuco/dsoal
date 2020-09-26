@@ -16,7 +16,6 @@ set PATH=%PATH%;%gccbase%
 ::pushd ..
 del build\dsound.dll
 windres -i version.rc build/versionres.o
-gcc -o build/kernel3p.dll proxydlls/kernel3p.c proxydlls/kernel3p.def %optsproxy% -lkernel32
 gcc -o build/dsound.dll %files% %opts% %linkinc% 2> build/dsoal_err.log
 ::popd
 IF %ERRORLEVEL% NEQ 0 (

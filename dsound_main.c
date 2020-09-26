@@ -553,6 +553,14 @@ void freedup(void *ptr)
     HeapFree(GetProcessHeap(), 0, ptr);
 }
 
+#define HACK_COMPARETOCALLER(COMPHAND) \
+void* HCTC_CALLERADDRESS = __builtin_extract_return_addr(__builtin_return_address(0)); \
+HMODULE HCTC_CALLERMODULE = NULL; \
+BOOL HCTC_ISIDENTHANDLE = FALSE; \
+if (COMPHAND && GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, HCTC_CALLERADDRESS, &HCTC_CALLERMODULE)) { \
+    HCTC_ISIDENTHANDLE = COMPHAND == HCTC_CALLERMODULE; \
+}
+
 /*******************************************************************************
  *      DirectSoundCreate (DSOUND.1)
  *
@@ -572,9 +580,11 @@ HRESULT WINAPI
 DSOAL_DirectSoundCreate(LPCGUID lpcGUID, IDirectSound **ppDS, IUnknown *pUnkOuter)
 {
     lazyLoad();
+    HACK_COMPARETOCALLER(openal_handle);
     HRESULT hr;
     void *pDS;
-
+    
+    if (HCTC_ISIDENTHANDLE) return pDirectSoundCreate(lpcGUID, ppDS, pUnkOuter);
     TRACE("(%s, %p, %p)\n", debugstr_guid(lpcGUID), ppDS, pUnkOuter);
 
     if (ppDS == NULL) {
@@ -622,9 +632,11 @@ HRESULT WINAPI
 DSOAL_DirectSoundCreate8(LPCGUID lpcGUID, IDirectSound8 **ppDS, IUnknown *pUnkOuter)
 {
     lazyLoad();
+    HACK_COMPARETOCALLER(openal_handle);
     HRESULT hr;
     void *pDS;
 
+    if (HCTC_ISIDENTHANDLE) return pDirectSoundCreate8(lpcGUID, ppDS, pUnkOuter);
     TRACE("(%s, %p, %p)\n", debugstr_guid(lpcGUID), ppDS, pUnkOuter);
 
     if (ppDS == NULL) {
@@ -770,7 +782,10 @@ static IClassFactoryImpl DSOUND_CF[] = {
 HRESULT WINAPI DSOAL_DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv)
 {
     lazyLoad();
+    HACK_COMPARETOCALLER(openal_handle);
     int i = 0;
+    
+    if (HCTC_ISIDENTHANDLE) return pDirectSoundDllGetClassObject(rclsid, riid, ppv);
     TRACE("(%s, %s, %p)\n", debugstr_guid(rclsid), debugstr_guid(riid), ppv);
 
     if (ppv == NULL) {
@@ -811,6 +826,8 @@ HRESULT WINAPI DSOAL_DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv
 HRESULT WINAPI DSOAL_DllCanUnloadNow(void)
 {
     lazyLoad();
+    HACK_COMPARETOCALLER(openal_handle);
+    if (HCTC_ISIDENTHANDLE) return pDirectSoundDllCanUnloadNow();
     FIXME("(void): stub\n");
     return S_FALSE;
 }
