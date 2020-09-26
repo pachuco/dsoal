@@ -118,6 +118,7 @@ const char *debugstr_guid( const GUID *id )
 
 
 #define MAXBUF 2048
+//and neither is this threadsafe
 void odsPrint(const CHAR* fmt, ...) {
     va_list args;
     char buf[MAXBUF];

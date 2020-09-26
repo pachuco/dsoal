@@ -255,7 +255,6 @@ void lazyLoad(void)
     if (hasAttemptedLoad) return;
     EnterCriticalSection(&openal_crst);
     if (hasAttemptedLoad) return;
-    hasAttemptedLoad = TRUE;
     
     str = getenv("DSOAL_LOGLEVEL");
     if(str && *str)
@@ -465,7 +464,6 @@ void lazyLoad(void)
     
     libs_loaded = 1;
     
-    LeaveCriticalSection(&openal_crst);
     
     const WCHAR *wstr;
     LogFile = stderr;
@@ -476,7 +474,8 @@ void lazyLoad(void)
         else LogFile = f;
     }
     
-    TlsThreadPtr = TlsAlloc();
+    hasAttemptedLoad = TRUE;
+    LeaveCriticalSection(&openal_crst);
     return;
     
     
@@ -485,6 +484,7 @@ void lazyLoad(void)
         if (dsound_handle != NULL) FreeLibrary(dsound_handle);
         openal_handle = NULL;
         dsound_handle = NULL;
+        hasAttemptedLoad = TRUE;
         LeaveCriticalSection(&openal_crst);
 }
 
@@ -826,6 +826,7 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
     {
     case DLL_PROCESS_ATTACH:
         InitializeCriticalSection(&openal_crst);
+        TlsThreadPtr = TlsAlloc();
         /* Increase refcount on dsound by 1 */
         //GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)hInstDLL, &hInstDLL);
         break;
