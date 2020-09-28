@@ -20,12 +20,8 @@ This specific fork is designed to run in windows XP.
 Source Code
 ===========
 
-To build the source, you will need CMake 2.6 or newer (you can get it from
-<http://www.cmake.org/>). You can either use the CMake GUI, specifying the
-directories for the source and where the build files should go, or using one of
-the command-line programs, for example by first making sure to be in an empty
-directory where the build files will go (such as the provided build/ sub-
-directory) and running cmake with the path to the source.
+To build the source, you need mingw+gcc. Define appropriate path in the batch file
+and run it.
 
 Once successfully built, it should have created dsound.dll.
 
