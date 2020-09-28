@@ -1578,6 +1578,7 @@ static HRESULT WINAPI DSBuffer_SetPan(IDirectSoundBuffer8 *iface, LONG pan)
         {
             ALfloat pos[3];
             pos[0] = (ALfloat)(pan-DSBPAN_LEFT)/(ALfloat)(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f;
+            pos[0] = sin(pos[0] * 3.14159265358979323846 * 2);
             pos[1] = 0.0f;
             /* NOTE: Strict movement along the X plane can cause the sound to
              * jump between left and right sharply. Using a curved path helps
