@@ -251,14 +251,21 @@ void lazyLoad(void)
 {
     BOOL failed = FALSE;
     const char *str;
+    const WCHAR *wstr;
     
     if (hasAttemptedLoad) return;
     EnterCriticalSection(&openal_crst);
     if (hasAttemptedLoad) return;
     
     str = getenv("DSOAL_LOGLEVEL");
-    if(str && *str)
-        LogLevel = atoi(str);
+    if(str && *str) LogLevel = atoi(str);
+    LogFile = stderr;
+    if((wstr=_wgetenv(L"DSOAL_LOGFILE")) != NULL && wstr[0] != 0)
+    {
+        FILE *f = _wfopen(wstr, L"wt");
+        if(!f) ERR("Failed to open log file %ls\n", wstr);
+        else LogFile = f;
+    }
 
     openal_handle = LoadLibraryW(aldriver_name);
     if(!openal_handle)
@@ -463,16 +470,6 @@ void lazyLoad(void)
     }
     
     libs_loaded = 1;
-    
-    
-    const WCHAR *wstr;
-    LogFile = stderr;
-    if((wstr=_wgetenv(L"DSOAL_LOGFILE")) != NULL && wstr[0] != 0)
-    {
-        FILE *f = _wfopen(wstr, L"wt");
-        if(!f) ERR("Failed to open log file %ls\n", wstr);
-        else LogFile = f;
-    }
     
     hasAttemptedLoad = TRUE;
     LeaveCriticalSection(&openal_crst);
