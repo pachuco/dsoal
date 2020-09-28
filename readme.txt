@@ -15,6 +15,7 @@ systems where audio acceleration is not otherwise available.
 Or more succinctly: it enables DirectSound3D surround sound and EAX for systems
 without the requisite hardware.
 
+This specific fork is designed to run in windows XP.
 
 Source Code
 ===========

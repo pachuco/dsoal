@@ -1,8 +1,8 @@
 @echo off
 set gccbase=G:\p_files\rtdk\i686-8.1.0-win32-dwarf-rt_v6-rev0\mingw32\bin
 
-set opts=-std=c99 -mconsole -Wall -Wextra -g
-::-Os -s
+set opts=-std=c99 -mconsole -Wall -Wextra -Os -s
+::-g
 set opts=%opts% -shared -Wl,--enable-stdcall-fixup -static-libgcc -DCOBJMACROS
 
 set linkinc=-Iinclude/AL -lole32
