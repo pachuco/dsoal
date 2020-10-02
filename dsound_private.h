@@ -452,6 +452,30 @@ extern LPDLLGETCLASSOBJECT             pDirectSoundDllGetClassObject;
 #define E_PROP_ID_UNSUPPORTED           ((HRESULT)0x80070490)
 #endif
 
+typedef enum {
+    DSPROPERTY_VMANAGER_MODE = 0,
+    DSPROPERTY_VMANAGER_PRIORITY,
+    DSPROPERTY_VMANAGER_STATE
+} DSPROPERTY_VMANAGER;
+
+
+typedef enum {
+    DSPROPERTY_VMANAGER_MODE_DEFAULT = 0,
+    DSPROPERTY_VMANAGER_MODE_AUTO,
+    DSPROPERTY_VMANAGER_MODE_REPORT,
+    DSPROPERTY_VMANAGER_MODE_USER,
+    VMANAGER_MODE_MAX
+} VmMode;
+
+
+typedef enum {
+    DSPROPERTY_VMANAGER_STATE_PLAYING3DHW = 0,
+    DSPROPERTY_VMANAGER_STATE_SILENT,
+    DSPROPERTY_VMANAGER_STATE_BUMPED,
+    DSPROPERTY_VMANAGER_STATE_PLAYFAILED,
+    VMANAGER_STATE_MAX
+} VmState;
+
 /* OpenAL only allows for 1 single access to the device at the same time */
 extern CRITICAL_SECTION openal_crst;
 
@@ -531,6 +555,8 @@ typedef struct DeviceShare {
 
     GUID guid;
     DWORD speaker_config;
+    
+    DWORD vm_managermode;
 } DeviceShare;
 
 #define HAS_EXTENSION(s, e) BITFIELD_TEST((s)->Exts, e)
@@ -657,6 +683,9 @@ struct DSBuffer {
 
     DWORD nnotify, lastpos;
     DSBPOSITIONNOTIFY *notify;
+    
+    DWORD vm_voicepriority;
+    //DWORD vm_voicestate;
 };
 
 
@@ -796,10 +825,11 @@ DEFINE_GUID(DSPROPSETID_DirectSoundDevice, 0x84624f82, 0x25ec, 0x11d1, 0xa4, 0xd
 DEFINE_GUID(KSDATAFORMAT_SUBTYPE_PCM, 0x00000001, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71);
 DEFINE_GUID(KSDATAFORMAT_SUBTYPE_IEEE_FLOAT, 0x00000003, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71);
 
-DEFINE_GUID(DSPROPSETID_VoiceManager, 0x62a69bae, 0xdf9d, 0x11d1, 0x99, 0xa6, 0x00, 0xc0, 0x4f, 0xc9, 0x9d, 0x46);
 DEFINE_GUID(DSPROPSETID_ZOOMFX_BufferProperties, 0xcd5368e0, 0x3450, 0x11d3, 0x8b, 0x6e, 0x00, 0x10, 0x5a, 0x9b, 0x7b, 0xbc);
 DEFINE_GUID(DSPROPSETID_I3DL2_ListenerProperties, 0xda0f0520, 0x300a, 0x11d3, 0x8a, 0x2b, 0x00, 0x60, 0x97, 0x0d, 0xb0, 0x11);
 DEFINE_GUID(DSPROPSETID_I3DL2_BufferProperties,   0xda0f0521, 0x300a, 0x11d3, 0x8a, 0x2b, 0x00, 0x60, 0x97, 0x0d, 0xb0, 0x11);
+
+DEFINE_GUID(DSPROPSETID_VoiceManager, 0x62a69bae, 0xdf9d, 0x11d1, 0x99, 0xa6, 0x00, 0xc0, 0x4f, 0xc9, 0x9d, 0x46);
 
 
 HRESULT DSPrimary_PreInit(DSPrimary *prim, DSDevice *parent);
@@ -855,6 +885,10 @@ HRESULT EAXReverb_Get(DSPrimary *prim, DWORD idx, DWORD propid, void *pPropData,
 
 HRESULT EAXChorus_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, ULONG cbPropData);
 HRESULT EAXChorus_Get(DSPrimary *prim, DWORD idx, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
+
+HRESULT VoiceMan_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport);
+HRESULT VoiceMan_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
+HRESULT VoiceMan_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 
 static inline LONG gain_to_mB(float gain)
 {
