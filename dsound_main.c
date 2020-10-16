@@ -444,8 +444,13 @@ void lazyLoad(void)
         palDeferUpdatesSOFT = wrap_DeferUpdates;
         palProcessUpdatesSOFT = wrap_ProcessUpdates;
     }
-
-    local_contexts = alcIsExtensionPresent(NULL, "ALC_EXT_thread_local_context");
+    
+    local_contexts = 0;
+    if ((GetVersion()&0xFF) > 0x05)
+        local_contexts = alcIsExtensionPresent(NULL, "ALC_EXT_thread_local_context");
+    else
+        WARN("TLS not suitable on pre-NT6 OS, disabling\n");
+    
     if(local_contexts)
     {
         TRACE("Found ALC_EXT_thread_local_context\n");
@@ -458,6 +463,7 @@ void lazyLoad(void)
             local_contexts = 0;
         }
     }
+    
     if(!local_contexts)
     {
         set_context = alcMakeContextCurrent;
