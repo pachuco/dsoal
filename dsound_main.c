@@ -848,7 +848,7 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
         InitializeCriticalSection(&openal_crst);
         TlsThreadPtr = TlsAlloc();
         /* Increase refcount on dsound by 1 */
-        //GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)hInstDLL, &hInstDLL);
+        GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)hInstDLL, &hInstDLL);
         break;
 
     case DLL_THREAD_ATTACH:
