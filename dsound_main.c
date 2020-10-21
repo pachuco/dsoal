@@ -582,12 +582,12 @@ if (COMPHAND && GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MO
 HRESULT WINAPI
 DSOAL_DirectSoundCreate(LPCGUID lpcGUID, IDirectSound **ppDS, IUnknown *pUnkOuter)
 {
-    HACK_COMPARETOCALLER(openal_handle);
     //lazyLoad();
+    //HACK_COMPARETOCALLER(openal_handle);
     HRESULT hr;
     void *pDS;
     
-    if (HCTC_ISIDENTHANDLE) return pDirectSoundCreate(lpcGUID, ppDS, pUnkOuter);
+    //if (HCTC_ISIDENTHANDLE) return pDirectSoundCreate(lpcGUID, ppDS, pUnkOuter);
     TRACE("(%s, %p, %p)\n", debugstr_guid(lpcGUID), ppDS, pUnkOuter);
 
     if (ppDS == NULL) {
@@ -634,12 +634,12 @@ DSOAL_DirectSoundCreate(LPCGUID lpcGUID, IDirectSound **ppDS, IUnknown *pUnkOute
 HRESULT WINAPI
 DSOAL_DirectSoundCreate8(LPCGUID lpcGUID, IDirectSound8 **ppDS, IUnknown *pUnkOuter)
 {
-    HACK_COMPARETOCALLER(openal_handle);
     //lazyLoad();
+    //HACK_COMPARETOCALLER(openal_handle);
     HRESULT hr;
     void *pDS;
 
-    if (HCTC_ISIDENTHANDLE) return pDirectSoundCreate8(lpcGUID, ppDS, pUnkOuter);
+    //if (HCTC_ISIDENTHANDLE) return pDirectSoundCreate8(lpcGUID, ppDS, pUnkOuter);
     TRACE("(%s, %p, %p)\n", debugstr_guid(lpcGUID), ppDS, pUnkOuter);
 
     if (ppDS == NULL) {
@@ -784,11 +784,11 @@ static IClassFactoryImpl DSOUND_CF[] = {
  */
 HRESULT WINAPI DSOAL_DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv)
 {
-    HACK_COMPARETOCALLER(openal_handle);
     //lazyLoad();
+    //HACK_COMPARETOCALLER(openal_handle);
     int i = 0;
     
-    if (HCTC_ISIDENTHANDLE) return pDirectSoundDllGetClassObject(rclsid, riid, ppv);
+    //if (HCTC_ISIDENTHANDLE) return pDirectSoundDllGetClassObject(rclsid, riid, ppv);
     TRACE("(%s, %s, %p)\n", debugstr_guid(rclsid), debugstr_guid(riid), ppv);
 
     if (ppv == NULL) {
@@ -828,9 +828,9 @@ HRESULT WINAPI DSOAL_DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv
  */
 HRESULT WINAPI DSOAL_DllCanUnloadNow(void)
 {
-    HACK_COMPARETOCALLER(openal_handle);
-    if (HCTC_ISIDENTHANDLE) return pDirectSoundDllCanUnloadNow();
     //lazyLoad();
+    //HACK_COMPARETOCALLER(openal_handle);
+    //if (HCTC_ISIDENTHANDLE) return pDirectSoundDllCanUnloadNow();
     FIXME("(void): stub\n");
     return S_FALSE;
 }
