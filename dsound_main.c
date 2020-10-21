@@ -582,8 +582,8 @@ if (COMPHAND && GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MO
 HRESULT WINAPI
 DSOAL_DirectSoundCreate(LPCGUID lpcGUID, IDirectSound **ppDS, IUnknown *pUnkOuter)
 {
-    lazyLoad();
     HACK_COMPARETOCALLER(openal_handle);
+    //lazyLoad();
     HRESULT hr;
     void *pDS;
     
@@ -634,8 +634,8 @@ DSOAL_DirectSoundCreate(LPCGUID lpcGUID, IDirectSound **ppDS, IUnknown *pUnkOute
 HRESULT WINAPI
 DSOAL_DirectSoundCreate8(LPCGUID lpcGUID, IDirectSound8 **ppDS, IUnknown *pUnkOuter)
 {
-    lazyLoad();
     HACK_COMPARETOCALLER(openal_handle);
+    //lazyLoad();
     HRESULT hr;
     void *pDS;
 
@@ -784,8 +784,8 @@ static IClassFactoryImpl DSOUND_CF[] = {
  */
 HRESULT WINAPI DSOAL_DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv)
 {
-    lazyLoad();
     HACK_COMPARETOCALLER(openal_handle);
+    //lazyLoad();
     int i = 0;
     
     if (HCTC_ISIDENTHANDLE) return pDirectSoundDllGetClassObject(rclsid, riid, ppv);
@@ -828,9 +828,9 @@ HRESULT WINAPI DSOAL_DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv
  */
 HRESULT WINAPI DSOAL_DllCanUnloadNow(void)
 {
-    lazyLoad();
     HACK_COMPARETOCALLER(openal_handle);
     if (HCTC_ISIDENTHANDLE) return pDirectSoundDllCanUnloadNow();
+    //lazyLoad();
     FIXME("(void): stub\n");
     return S_FALSE;
 }
@@ -847,6 +847,7 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
     case DLL_PROCESS_ATTACH:
         InitializeCriticalSection(&openal_crst);
         TlsThreadPtr = TlsAlloc();
+        lazyLoad();
         /* Increase refcount on dsound by 1 */
         GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)hInstDLL, &hInstDLL);
         break;
