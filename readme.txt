@@ -29,13 +29,21 @@ Once successfully built, it should have created dsound.dll.
 Usage
 =====
 
-Once built, copy dsound.dll to the same location as the desired application's
-executable. You must also provide an OpenAL DLL in the same location, named as
-dsoal-aldrv.dll, or else the DLL will fail to work. Some applications may need
-to be configured to use DirectSound3D acceleration and EAX, but it otherwise
-goes to work the next time the application is run.
+Copy the provided dsound.dll and dsoal-aldrv.dll into game's folder.
+Some applications may need to be configured to use DirectSound3D acceleration and EAX.
+You may also want to tune SoftOAL by providing a config file named "alsoft.ini",
+either in C:\Documents and Settings\USERNAME\Application Data\alsoft.ini
+or in game's folder.
+Details on how to configure here:
+https://github.com/kcat/openal-soft/blob/master/alsoftrc.sample
 
+IMPORTANT:
+If you provide your own OpenAL implementation DLL in place of included dsoal-aldrv.dll,
+special care must be taken.
+Either have OpenAL use backend different from DirectSound, or have it explicitly load
+"system32\dsound.dll" instead of just "dsound.dll".
+Failure to do so will result in application locking up on startup.
 
-Source releases, the Git repository, and Windows binaries for OpenAL Soft are
-available at its homepage <http://kcat.strangesoft.net/openal.html>.
+Official source releases, the Git repository, and Windows binaries for OpenAL Soft are
+available at its homepage: http://kcat.strangesoft.net/openal.html
 Instructions are also provided there.
