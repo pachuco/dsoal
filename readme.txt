@@ -29,7 +29,11 @@ Once successfully built, it should have created dsound.dll.
 Usage
 =====
 
-Copy the provided dsound.dll and dsoal-aldrv.dll into game's folder.
+Make sure your registry is set up according to https://www.indirectsound.com/registryIssues.html
+Do so for objects DirectSound, DirectSound8, DirectSoundCapture, DirectSoundCapture8,
+DirectSoundFullDuplex.
+
+Now, copy the provided dsound.dll and dsoal-aldrv.dll into game's folder.
 Some applications may need to be configured to use DirectSound3D acceleration and EAX.
 You may also want to tune SoftOAL by providing a config file named "alsoft.ini",
 either in C:\Documents and Settings\USERNAME\Application Data\alsoft.ini
