@@ -253,9 +253,12 @@ void lazyLoad(void)
     const char *str;
     const WCHAR *wstr;
     
-    if (hasAttemptedLoad) return;
+    /*if (hasAttemptedLoad) return;
     EnterCriticalSection(&openal_crst);
-    if (hasAttemptedLoad) return;
+    if (hasAttemptedLoad) {
+        LeaveCriticalSection(&openal_crst);
+        return;
+    }*/
     
     str = getenv("DSOAL_LOGLEVEL");
     if(str && *str) LogLevel = atoi(str);
@@ -478,7 +481,7 @@ void lazyLoad(void)
     libs_loaded = 1;
     
     hasAttemptedLoad = TRUE;
-    LeaveCriticalSection(&openal_crst);
+    //LeaveCriticalSection(&openal_crst);
     return;
     
     
@@ -488,7 +491,7 @@ void lazyLoad(void)
         openal_handle = NULL;
         dsound_handle = NULL;
         hasAttemptedLoad = TRUE;
-        LeaveCriticalSection(&openal_crst);
+        //LeaveCriticalSection(&openal_crst);
 }
 
 
